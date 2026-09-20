@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-SERVICE_VERSION = "1.1.0"
+SERVICE_VERSION = "1.1.1"
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 MAX_TEXT_LENGTH = 1000
@@ -180,34 +180,11 @@ class SVoiceXttsService:
         }
 
     def add_profile(self, payload: dict[str, Any]) -> dict[str, Any]:
-        name = str(payload.get("name", "")).strip()
-        source_paths = payload.get("reference_paths")
-        if not name:
-            raise ServiceError("Informe um nome para o perfil de voz.")
-        if len(name) > 80:
-            raise ServiceError("O nome do perfil deve ter no máximo 80 caracteres.")
-        if not isinstance(source_paths, list) or not source_paths:
-            raise ServiceError("Selecione pelo menos um áudio de referência.")
-
-        normalized_name = name.casefold()
-        with self._registry_lock:
-            for profile in self._profiles.get("profiles", []):
-                if str(profile.get("name", "")).casefold() == normalized_name:
-                    raise ServiceError(f'Já existe um perfil chamado "{name}".')
-
-        sources: list[Path] = []
-        original_duration = 0.0
-        for raw_path in source_paths:
-            try:
-                source = Path(str(raw_path)).expanduser().resolve(strict=True)
-            except (OSError, RuntimeError) as error:
-                raise ServiceError("Um dos áudios selecionados não foi encontrado.") from error
-            if not source.is_file() or source.suffix.lower() not in ALLOWED_EXTENSIONS:
-                raise ServiceError(
-                    "Use arquivos WAV, MP3, M4A, FLAC ou OGG como referência."
-                )
-            sources.append(source)
-            original_duration += max(0.0, self._audio_duration(source))
+        sources = self._validated_reference_sources(payload.get("reference_paths"))
+        name = self._available_profile_name(payload.get("name"), sources[0].stem)
+        original_duration = sum(
+            max(0.0, self._audio_duration(source)) for source in sources
+        )
 
         profile_id = uuid.uuid4().hex
         profile_dir = self.voices_dir / profile_id
@@ -273,6 +250,62 @@ class SVoiceXttsService:
             raise
         finally:
             shutil.rmtree(processing_dir, ignore_errors=True)
+
+    @staticmethod
+    def _validated_reference_sources(raw_paths: Any) -> list[Path]:
+        if not isinstance(raw_paths, list) or not raw_paths:
+            raise ServiceError("Selecione pelo menos um áudio de referência.")
+
+        sources: list[Path] = []
+        seen_paths: set[str] = set()
+        for raw_path in raw_paths:
+            if not isinstance(raw_path, (str, os.PathLike)) or not str(raw_path).strip():
+                raise ServiceError("Um dos caminhos de áudio é inválido.")
+            try:
+                source = Path(raw_path).expanduser().resolve(strict=True)
+            except (OSError, RuntimeError) as error:
+                raise ServiceError(
+                    "Um dos áudios selecionados não foi encontrado."
+                ) from error
+            if not source.is_file() or source.suffix.lower() not in ALLOWED_EXTENSIONS:
+                raise ServiceError(
+                    "Use arquivos WAV, MP3, M4A, FLAC ou OGG como referência."
+                )
+            normalized_path = os.path.normcase(str(source))
+            if normalized_path in seen_paths:
+                continue
+            seen_paths.add(normalized_path)
+            sources.append(source)
+
+        if not sources:
+            raise ServiceError("Selecione pelo menos um áudio de referência.")
+        return sources
+
+    def _available_profile_name(self, requested_name: Any, fallback: str) -> str:
+        raw_name = "" if requested_name is None else str(requested_name)
+        name = re.sub(r"[\x00-\x1f\x7f]", "", raw_name)
+        name = re.sub(r"\s+", " ", name).strip(" .")
+        if not name:
+            name = re.sub(r"\s+", " ", fallback).strip(" .")
+        if not name:
+            name = "Voz clonada"
+        name = name[:80].rstrip(" .") or "Voz clonada"
+
+        with self._registry_lock:
+            existing_names = {
+                str(profile.get("name", "")).casefold()
+                for profile in self._profiles.get("profiles", [])
+            }
+        if name.casefold() not in existing_names:
+            return name
+
+        index = 2
+        while True:
+            suffix = f" ({index})"
+            candidate = f"{name[: 80 - len(suffix)].rstrip()}{suffix}"
+            if candidate.casefold() not in existing_names:
+                return candidate
+            index += 1
 
     @staticmethod
     def _split_reference_audio(

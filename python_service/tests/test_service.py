@@ -12,7 +12,7 @@ SERVICE_DIRECTORY = Path(__file__).resolve().parents[1]
 if str(SERVICE_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIRECTORY))
 
-from service import SVoiceXttsService
+from service import ServiceError, SVoiceXttsService
 
 
 class ProfileRegistryTests(unittest.TestCase):
@@ -55,6 +55,57 @@ class ProfileRegistryTests(unittest.TestCase):
 
         self.service.delete_profile(profile["id"])
         self.assertEqual(self.service.list_profiles(), [])
+
+    def test_profile_name_is_optional_and_derived_from_file(self) -> None:
+        profile = self.service.add_profile(
+            {"reference_paths": [str(self.reference)]}
+        )
+
+        self.assertEqual(profile["name"], "reference")
+
+    def test_duplicate_automatic_names_receive_a_suffix(self) -> None:
+        first = self.service.add_profile(
+            {"reference_paths": [str(self.reference)]}
+        )
+        second = self.service.add_profile(
+            {"name": "   ", "reference_paths": [str(self.reference)]}
+        )
+
+        self.assertEqual(first["name"], "reference")
+        self.assertEqual(second["name"], "reference (2)")
+
+    def test_duplicate_source_paths_are_processed_once(self) -> None:
+        profile = self.service.add_profile(
+            {
+                "reference_paths": [str(self.reference), str(self.reference)],
+            }
+        )
+
+        self.assertEqual(profile["source_count"], 1)
+        self.assertEqual(profile["reference_count"], 1)
+
+    def test_rejects_missing_or_invalid_reference_paths(self) -> None:
+        invalid_payloads = (
+            {},
+            {"reference_paths": []},
+            {"reference_paths": "reference.wav"},
+            {"reference_paths": [""]},
+            {"reference_paths": [str(self.root / "missing.wav")]},
+        )
+
+        for payload in invalid_payloads:
+            with self.subTest(payload=payload), self.assertRaises(ServiceError):
+                self.service.add_profile(payload)
+
+    def test_long_requested_name_is_safely_shortened(self) -> None:
+        profile = self.service.add_profile(
+            {
+                "name": "V" * 120,
+                "reference_paths": [str(self.reference)],
+            }
+        )
+
+        self.assertEqual(len(profile["name"]), 80)
 
     def test_accepts_more_than_five_source_files(self) -> None:
         references = [self._create_wav(f"reference_{index}.wav", 4) for index in range(6)]

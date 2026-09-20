@@ -1201,9 +1201,11 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
     final audioFiles = await openFiles(acceptedTypeGroups: [audioTypes]);
     if (audioFiles.isEmpty || !mounted) return;
 
-    final nameController = TextEditingController(
-      text: audioFiles.first.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
+    final automaticName = audioFiles.first.name.replaceFirst(
+      RegExp(r'\.[^.]+$'),
+      '',
     );
+    final nameController = TextEditingController();
     var saving = false;
     String? dialogError;
 
@@ -1228,16 +1230,9 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                     controller: nameController,
                     autofocus: true,
                     enabled: !saving,
-                    onChanged: (value) {
-                      if (dialogError != null && value.trim().isNotEmpty) {
-                        setDialogState(() {
-                          dialogError = null;
-                        });
-                      }
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Nome da voz',
-                      hintText: 'Ex.: Minha voz',
+                    decoration: InputDecoration(
+                      labelText: 'Nome da voz (opcional)',
+                      hintText: 'Automático: $automaticName',
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1294,12 +1289,6 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                   ? null
                   : () async {
                       final name = nameController.text.trim();
-                      if (name.isEmpty) {
-                        setDialogState(() {
-                          dialogError = 'Informe o nome da voz.';
-                        });
-                        return;
-                      }
                       setDialogState(() {
                         saving = true;
                         dialogError = null;
@@ -1319,8 +1308,8 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                             SnackBar(
                               content: Text(
                                 profile.wasTruncated
-                                    ? 'Voz “$name” adicionada. O áudio foi limitado aos primeiros 30 minutos.'
-                                    : 'Voz “$name” adicionada.',
+                                    ? 'Voz “${profile.name}” adicionada. O áudio foi limitado aos primeiros 30 minutos.'
+                                    : 'Voz “${profile.name}” adicionada.',
                               ),
                             ),
                           );

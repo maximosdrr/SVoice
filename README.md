@@ -23,9 +23,10 @@ fica sempre no topo, pode ser recolhida e tem transparência ajustável.
 
 O motor XTTS é iniciado e encerrado pelo próprio SVoice, sem uma segunda
 janela e sem exigir que o usuário instale ou abra o Python. Em **Configurações
-> Vozes clonadas**, selecione um ou vários áudios limpos de uma única pessoa e
-dê um nome à voz. O SVoice aceita até 30 minutos no total, corta o material em
-trechos de 20 segundos e descarta automaticamente o conteúdo excedente.
+> Vozes clonadas**, selecione um ou vários áudios limpos de uma única pessoa.
+O nome é opcional; se ficar vazio, o SVoice usa o nome do primeiro arquivo. O
+SVoice aceita até 30 minutos no total, corta o material em trechos de 20
+segundos e descarta automaticamente o conteúdo excedente.
 
 O modo **Automático** usa uma GPU NVIDIA compatível quando disponível. Se a
 GPU não estiver disponível ou não concluir a geração, o SVoice tenta novamente

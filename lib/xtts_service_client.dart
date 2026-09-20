@@ -203,13 +203,18 @@ class XtssServiceClient {
   }
 
   Future<ClonedVoiceProfile> addProfile({
-    required String name,
+    String? name,
     required List<String> referencePaths,
   }) async {
+    final normalizedName = name?.trim();
     final json = await _request(
       'POST',
       '/profiles',
-      body: {'name': name, 'reference_paths': referencePaths},
+      body: {
+        if (normalizedName != null && normalizedName.isNotEmpty)
+          'name': normalizedName,
+        'reference_paths': referencePaths,
+      },
       timeout: const Duration(minutes: 45),
     );
     return ClonedVoiceProfile.fromJson(

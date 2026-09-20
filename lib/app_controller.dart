@@ -441,7 +441,7 @@ class SVoiceController extends ChangeNotifier {
   }
 
   Future<ClonedVoiceProfile> addClonedVoice({
-    required String name,
+    String? name,
     required List<String> referencePaths,
   }) async {
     if (!_xtts.isReady) await _initializeCloning();
