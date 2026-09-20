@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app_controller.dart';
+import 'overlay_window_controller.dart';
 import 'xtts_service_client.dart';
 
 enum PanelMode { compact, chat, settings, discordGuide }
@@ -36,10 +37,12 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
 
   final _messageController = TextEditingController();
   final _messageFocus = FocusNode();
+  final _windowController = OverlayWindowController(
+    window: const WindowManagerOverlayWindow(),
+  );
   HotKey? _visibilityHotKey;
   PanelMode _mode = PanelMode.chat;
   bool _alwaysOnTop = true;
-  bool _isTogglingVisibility = false;
   bool _isClosing = false;
 
   SVoiceController get controller => widget.controller;
@@ -96,20 +99,14 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
   }
 
   Future<void> _toggleVisibility() async {
-    if (_isTogglingVisibility) return;
-    _isTogglingVisibility = true;
     try {
-      final visible = await windowManager.isVisible();
-      if (visible) {
-        await windowManager.hide();
-      } else {
-        await windowManager.show();
-        await windowManager.restore();
-        await windowManager.focus();
+      final change = await _windowController.toggle();
+      if (change == OverlayVisibilityChange.shown && mounted) {
         _messageFocus.requestFocus();
       }
-    } finally {
-      _isTogglingVisibility = false;
+    } catch (error, stackTrace) {
+      debugPrint('Não foi possível alternar a janela do SVoice: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
@@ -120,6 +117,16 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
   @override
   void onWindowClose() {
     _closeApplication();
+  }
+
+  @override
+  void onWindowMinimize() {
+    _windowController.notifyMinimized();
+  }
+
+  @override
+  void onWindowRestore() {
+    _windowController.notifyRestored();
   }
 
   Future<void> _closeApplication() async {
@@ -197,7 +204,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
               side: BorderSide(color: Colors.white.withValues(alpha: .1)),
             ),
             title: const Text(
-              'Atalho para ocultar o SVoice',
+              'Atalho para mostrar ou ocultar o SVoice',
               style: TextStyle(fontSize: 15),
             ),
             content: SizedBox(
@@ -513,7 +520,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
               _headerButton(
                 icon: Icons.remove_rounded,
                 tooltip: 'Minimizar',
-                onPressed: windowManager.minimize,
+                onPressed: _windowController.minimize,
               ),
               _headerButton(
                 icon: Icons.close_rounded,
