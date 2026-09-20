@@ -15,6 +15,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import traceback
 import uuid
@@ -28,7 +29,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-SERVICE_VERSION = "1.1.2"
+SERVICE_VERSION = "1.1.3"
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 MAX_TEXT_LENGTH = 1000
@@ -551,9 +552,11 @@ class SVoiceXttsService:
                 active_device=device,
             )
             os.environ["COQUI_TOS_AGREED"] = "1"
+            _prepare_frozen_runtime()
             self._apply_transformers_compatibility()
             import torch
             import torchaudio
+            _configure_audio_io(torch, torchaudio)
             from TTS.api import TTS
 
             self._torch = torch
@@ -815,18 +818,115 @@ class ApiHandler(BaseHTTPRequestHandler):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--port", type=int, required=True)
-    parser.add_argument("--token", required=True)
-    parser.add_argument("--data-dir", type=Path, required=True)
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--token")
+    parser.add_argument("--data-dir", type=Path)
     return parser.parse_args()
+
+
+def _prepare_frozen_runtime() -> None:
+    if not getattr(sys, "frozen", False):
+        return
+    import typeguard
+
+    def passthrough_typechecked(target: Any = None, *args: Any, **kwargs: Any):
+        if target is None or not callable(target):
+            return lambda wrapped: wrapped
+        return target
+
+    typeguard.typechecked = passthrough_typechecked
+
+
+def _configure_audio_io(torch_module: Any, torchaudio_module: Any) -> None:
+    import soundfile
+
+    def load_audio(
+        uri: Any,
+        frame_offset: int = 0,
+        num_frames: int = -1,
+        normalize: bool = True,
+        channels_first: bool = True,
+        **kwargs: Any,
+    ):
+        del normalize, kwargs
+        with soundfile.SoundFile(os.fspath(uri)) as audio_file:
+            offset = max(0, int(frame_offset))
+            if offset:
+                audio_file.seek(min(offset, audio_file.frames))
+            frames = -1 if num_frames is None or num_frames < 0 else int(num_frames)
+            samples = audio_file.read(
+                frames=frames,
+                dtype="float32",
+                always_2d=True,
+            )
+            sample_rate = audio_file.samplerate
+        waveform = torch_module.from_numpy(samples.copy())
+        if channels_first:
+            waveform = waveform.transpose(0, 1)
+        return waveform, sample_rate
+
+    def save_audio(
+        uri: Any,
+        source: Any,
+        sample_rate: int,
+        channels_first: bool = True,
+        format: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        del kwargs
+        samples = source.detach().float().cpu().numpy()
+        if channels_first and samples.ndim == 2:
+            samples = samples.transpose(1, 0)
+        soundfile.write(
+            os.fspath(uri),
+            samples,
+            int(sample_rate),
+            format=format.upper() if format else None,
+            subtype="PCM_16",
+        )
+
+    torchaudio_module.load = load_audio
+    torchaudio_module.save = save_audio
+
+
+def runtime_self_test() -> None:
+    from importlib.metadata import version
+
+    _prepare_frozen_runtime()
+    version("torchcodec")
+    from transformers import (  # noqa: F401
+        GPT2Config,
+        GPT2PreTrainedModel,
+        GenerationMixin,
+        LogitsProcessorList,
+    )
+    from ko_speech_tools import hangul_romanize  # noqa: F401
+    from TTS.tts.configs.xtts_config import XttsConfig  # noqa: F401
+    from TTS.tts.models.xtts import Xtts  # noqa: F401
+    import torch
+    import torchaudio
+
+    _configure_audio_io(torch, torchaudio)
+    with tempfile.TemporaryDirectory(prefix="svoice_self_test_") as directory:
+        test_audio = Path(directory) / "roundtrip.wav"
+        torchaudio.save(str(test_audio), torch.zeros(1, 240), 24000)
+        waveform, sample_rate = torchaudio.load(str(test_audio))
+        if sample_rate != 24000 or tuple(waveform.shape) != (1, 240):
+            raise RuntimeError("Falha no autoteste de leitura e gravação de áudio.")
 
 
 def main() -> int:
     args = parse_args()
-    if args.port < 1024 or args.port > 65535:
+    if args.self_test:
+        runtime_self_test()
+        os._exit(0)
+    if args.port is None or args.port < 1024 or args.port > 65535:
         raise SystemExit("Porta inválida")
-    if len(args.token) < 32:
+    if args.token is None or len(args.token) < 32:
         raise SystemExit("Token inválido")
+    if args.data_dir is None:
+        raise SystemExit("Diretório de dados inválido")
 
     app = SVoiceXttsService(args.data_dir)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), ApiHandler)

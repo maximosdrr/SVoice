@@ -62,6 +62,7 @@ try {
     --clean `
     --onedir `
     --noconsole `
+    --disable-windowed-traceback `
     --name svoice_xtts_service `
     --distpath $distDirectory `
     --workpath $buildDirectory `
@@ -69,7 +70,9 @@ try {
     --collect-all trainer `
     --collect-all coqpit `
     --collect-all imageio_ffmpeg `
+    --collect-all ko_speech_tools `
     --collect-data transformers `
+    --copy-metadata torchcodec `
     --hidden-import TTS.tts.configs.xtts_config `
     --hidden-import TTS.tts.models.xtts `
     --hidden-import torchaudio `
@@ -85,6 +88,16 @@ finally {
 $serviceExecutable = Join-Path $distDirectory 'svoice_xtts_service\svoice_xtts_service.exe'
 if (-not (Test-Path -LiteralPath $serviceExecutable)) {
   throw 'O executável do mecanismo XTTS não foi produzido.'
+}
+
+$selfTestProcess = Start-Process `
+  -FilePath $serviceExecutable `
+  -ArgumentList '--self-test' `
+  -WindowStyle Hidden `
+  -Wait `
+  -PassThru
+if ($selfTestProcess.ExitCode -ne 0) {
+  throw 'O executável do mecanismo XTTS falhou no autoteste de dependências.'
 }
 
 Write-Output $serviceExecutable
