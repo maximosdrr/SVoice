@@ -1228,6 +1228,13 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                     controller: nameController,
                     autofocus: true,
                     enabled: !saving,
+                    onChanged: (value) {
+                      if (dialogError != null && value.trim().isNotEmpty) {
+                        setDialogState(() {
+                          dialogError = null;
+                        });
+                      }
+                    },
                     decoration: const InputDecoration(
                       labelText: 'Nome da voz',
                       hintText: 'Ex.: Minha voz',
