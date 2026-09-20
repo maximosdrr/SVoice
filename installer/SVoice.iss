@@ -1,5 +1,5 @@
 #define MyAppName "SVoice"
-#define MyAppVersion "1.3.1"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "SVoice"
 #define MyAppExeName "SVoice.exe"
 
@@ -42,6 +42,7 @@ Source: "..\python_service\dist\svoice_xtts_service\*"; DestDir: "{app}\xtts_ser
 Source: "vendor\VBCABLE\*"; DestDir: "{tmp}\SVoice-VBCABLE"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall; Tasks: installvbcable
 Source: "licenses\VB-CABLE-NOTICE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "licenses\XTTS-NOTICE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "licenses\FFMPEG-NOTICE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

@@ -37,4 +37,20 @@ void main() {
     expect(XtssComputeMode.fromWireName('cpu'), XtssComputeMode.cpu);
     expect(XtssComputeMode.fromWireName('gpu'), XtssComputeMode.gpu);
   });
+
+  test('cloned profile exposes processed chunks and truncation', () {
+    final profile = ClonedVoiceProfile.fromJson({
+      'id': 'profile-long',
+      'name': 'Áudio longo',
+      'reference_count': 90,
+      'source_count': 3,
+      'duration_seconds': 1800,
+      'truncated': true,
+    });
+
+    expect(profile.referenceCount, 90);
+    expect(profile.sourceCount, 3);
+    expect(profile.durationSeconds, 1800);
+    expect(profile.wasTruncated, isTrue);
+  });
 }

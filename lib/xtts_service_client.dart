@@ -30,6 +30,8 @@ class ClonedVoiceProfile {
     required this.name,
     required this.referenceCount,
     required this.durationSeconds,
+    this.sourceCount = 1,
+    this.wasTruncated = false,
     this.createdAt,
   });
 
@@ -39,6 +41,8 @@ class ClonedVoiceProfile {
       name: json['name']?.toString() ?? 'Voz clonada',
       referenceCount: (json['reference_count'] as num?)?.toInt() ?? 1,
       durationSeconds: (json['duration_seconds'] as num?)?.toDouble() ?? 0,
+      sourceCount: (json['source_count'] as num?)?.toInt() ?? 1,
+      wasTruncated: json['truncated'] == true,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
     );
   }
@@ -47,6 +51,8 @@ class ClonedVoiceProfile {
   final String name;
   final int referenceCount;
   final double durationSeconds;
+  final int sourceCount;
+  final bool wasTruncated;
   final DateTime? createdAt;
 }
 
@@ -204,6 +210,7 @@ class XtssServiceClient {
       'POST',
       '/profiles',
       body: {'name': name, 'reference_paths': referencePaths},
+      timeout: const Duration(minutes: 45),
     );
     return ClonedVoiceProfile.fromJson(
       Map<String, dynamic>.from(json['profile'] as Map),

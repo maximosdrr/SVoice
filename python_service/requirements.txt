@@ -4,4 +4,5 @@ torch>=2.2
 torchaudio
 torchcodec
 mutagen==1.47.0
+imageio-ffmpeg==0.6.0
 pyinstaller>=6.10,<7

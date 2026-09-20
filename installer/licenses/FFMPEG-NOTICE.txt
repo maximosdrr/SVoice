@@ -1,0 +1,15 @@
+SVOICE - AVISO SOBRE O CONVERSOR DE ÁUDIO FFmpeg
+
+O SVoice inclui um executável do FFmpeg fornecido pelo pacote imageio-ffmpeg
+0.6.0. Ele é utilizado somente como processo separado para converter e dividir
+os áudios de referência selecionados pelo usuário.
+
+O executável FFmpeg incluído é software livre distribuído sob a GNU General
+Public License, versão 3 ou posterior. O código-fonte e os termos completos
+podem ser obtidos em:
+
+https://ffmpeg.org/
+https://github.com/FFmpeg/FFmpeg/tree/n7.1
+https://www.gnu.org/licenses/gpl-3.0.html
+
+FFmpeg é uma marca registrada de Fabrice Bellard, originador do projeto.

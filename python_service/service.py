@@ -13,6 +13,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import threading
 import traceback
@@ -27,10 +28,14 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-SERVICE_VERSION = "1.0.2"
+SERVICE_VERSION = "1.1.0"
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 MAX_TEXT_LENGTH = 1000
+MAX_REFERENCE_DURATION_SECONDS = 30 * 60
+REFERENCE_CHUNK_SECONDS = 20
+REFERENCE_SAMPLE_RATE = 24000
+CONDITIONING_CACHE_VERSION = 2
 
 
 class ServiceError(Exception):
@@ -103,9 +108,12 @@ class SVoiceXttsService:
         temporary.replace(path)
 
     def _cleanup_temp_files(self) -> None:
-        for path in self.temp_dir.glob("*.wav"):
+        for path in self.temp_dir.iterdir():
             try:
-                path.unlink()
+                if path.is_dir() and path.name.startswith("import_"):
+                    shutil.rmtree(path)
+                elif path.is_file() and path.suffix.lower() == ".wav":
+                    path.unlink()
             except OSError:
                 pass
 
@@ -166,6 +174,8 @@ class SVoiceXttsService:
             "name": profile["name"],
             "reference_count": len(profile.get("reference_paths", [])),
             "duration_seconds": float(profile.get("duration_seconds", 0.0)),
+            "source_count": int(profile.get("source_count", 1)),
+            "truncated": bool(profile.get("truncated", False)),
             "created_at": profile.get("created_at"),
         }
 
@@ -185,25 +195,54 @@ class SVoiceXttsService:
                 if str(profile.get("name", "")).casefold() == normalized_name:
                     raise ServiceError(f'Já existe um perfil chamado "{name}".')
 
+        sources: list[Path] = []
+        original_duration = 0.0
+        for raw_path in source_paths:
+            try:
+                source = Path(str(raw_path)).expanduser().resolve(strict=True)
+            except (OSError, RuntimeError) as error:
+                raise ServiceError("Um dos áudios selecionados não foi encontrado.") from error
+            if not source.is_file() or source.suffix.lower() not in ALLOWED_EXTENSIONS:
+                raise ServiceError(
+                    "Use arquivos WAV, MP3, M4A, FLAC ou OGG como referência."
+                )
+            sources.append(source)
+            original_duration += max(0.0, self._audio_duration(source))
+
         profile_id = uuid.uuid4().hex
         profile_dir = self.voices_dir / profile_id
+        processing_dir = self.temp_dir / f"import_{profile_id}"
         profile_dir.mkdir(parents=True, exist_ok=False)
-        copied_paths: list[str] = []
+        processing_dir.mkdir(parents=True, exist_ok=False)
+        processed_paths: list[str] = []
         total_duration = 0.0
         try:
-            for index, raw_path in enumerate(source_paths[:5]):
-                source = Path(str(raw_path)).expanduser().resolve(strict=True)
-                if not source.is_file() or source.suffix.lower() not in ALLOWED_EXTENSIONS:
-                    raise ServiceError(
-                        "Use arquivos WAV, MP3, M4A, FLAC ou OGG como referência."
-                    )
-                duration = self._audio_duration(source)
-                if duration <= 0:
+            self._set_status("processing", "Cortando os áudios de referência…")
+            remaining_seconds = float(MAX_REFERENCE_DURATION_SECONDS)
+            chunk_number = 0
+            for source_index, source in enumerate(sources):
+                if remaining_seconds <= 0.05:
+                    break
+                generated_chunks = self._split_reference_audio(
+                    source,
+                    processing_dir,
+                    source_index,
+                    remaining_seconds,
+                )
+                if not generated_chunks:
                     raise ServiceError(f"Não foi possível ler o áudio {source.name}.")
-                total_duration += duration
-                destination = profile_dir / f"reference_{index + 1}{source.suffix.lower()}"
-                shutil.copy2(source, destination)
-                copied_paths.append(str(destination))
+                for temporary_chunk in generated_chunks:
+                    duration = self._audio_duration(temporary_chunk)
+                    if duration <= 0:
+                        continue
+                    chunk_number += 1
+                    destination = profile_dir / f"reference_{chunk_number:04d}.wav"
+                    shutil.move(str(temporary_chunk), destination)
+                    processed_paths.append(str(destination))
+                    total_duration += duration
+                remaining_seconds = max(
+                    0.0, MAX_REFERENCE_DURATION_SECONDS - total_duration
+                )
 
             if total_duration < 3:
                 raise ServiceError(
@@ -214,17 +253,95 @@ class SVoiceXttsService:
             profile = {
                 "id": profile_id,
                 "name": name,
-                "reference_paths": copied_paths,
-                "duration_seconds": round(total_duration, 3),
+                "reference_paths": processed_paths,
+                "duration_seconds": round(
+                    min(total_duration, MAX_REFERENCE_DURATION_SECONDS), 3
+                ),
+                "source_count": len(sources),
+                "truncated": original_duration
+                > MAX_REFERENCE_DURATION_SECONDS + 0.05,
                 "created_at": datetime.now(UTC).isoformat(),
             }
             with self._registry_lock:
                 self._profiles.setdefault("profiles", []).append(profile)
                 self._write_json(self.registry_path, self._profiles)
+            self._set_status("ready", "Áudios de referência preparados")
             return self._public_profile(profile)
         except Exception:
             shutil.rmtree(profile_dir, ignore_errors=True)
+            self._set_status("ready", "Mecanismo de clonagem pronto")
             raise
+        finally:
+            shutil.rmtree(processing_dir, ignore_errors=True)
+
+    @staticmethod
+    def _split_reference_audio(
+        source: Path,
+        processing_dir: Path,
+        source_index: int,
+        maximum_seconds: float,
+    ) -> list[Path]:
+        try:
+            import imageio_ffmpeg
+
+            ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception as error:
+            raise ServiceError(
+                "O conversor de áudio integrado não está disponível."
+            ) from error
+
+        output_pattern = processing_dir / f"source_{source_index:04d}_%04d.wav"
+        creation_flags = (
+            subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        )
+        command = [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            "-y",
+            "-i",
+            str(source),
+            "-map",
+            "0:a:0",
+            "-vn",
+            "-t",
+            f"{maximum_seconds:.3f}",
+            "-ac",
+            "1",
+            "-ar",
+            str(REFERENCE_SAMPLE_RATE),
+            "-c:a",
+            "pcm_s16le",
+            "-f",
+            "segment",
+            "-segment_time",
+            str(REFERENCE_CHUNK_SECONDS),
+            "-reset_timestamps",
+            "1",
+            str(output_pattern),
+        ]
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=30 * 60,
+                creationflags=creation_flags,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ServiceError(
+                f"Não foi possível processar o áudio {source.name}."
+            ) from error
+        if result.returncode != 0:
+            detail = result.stderr.strip().splitlines()
+            reason = detail[-1] if detail else "formato não reconhecido"
+            raise ServiceError(
+                f"Não foi possível processar {source.name}: {reason}"
+            )
+        return sorted(processing_dir.glob(f"source_{source_index:04d}_*.wav"))
 
     def delete_profile(self, profile_id: str) -> None:
         with self._synthesis_lock, self._registry_lock:
@@ -412,15 +529,20 @@ class SVoiceXttsService:
                 payload = self._torch.load(
                     cache_path, map_location=device, weights_only=False
                 )
-                return (
-                    payload["gpt_cond_latent"].to(device),
-                    payload["speaker_embedding"].to(device),
-                )
+                if (
+                    payload.get("model") == MODEL_NAME
+                    and payload.get("cache_version") == CONDITIONING_CACHE_VERSION
+                ):
+                    return (
+                        payload["gpt_cond_latent"].to(device),
+                        payload["speaker_embedding"].to(device),
+                    )
             except Exception:
-                try:
-                    cache_path.unlink()
-                except OSError:
-                    pass
+                pass
+            try:
+                cache_path.unlink()
+            except OSError:
+                pass
 
         reference_paths = [
             path
@@ -430,13 +552,17 @@ class SVoiceXttsService:
         if not reference_paths:
             raise ServiceError("O áudio de referência deste perfil não foi encontrado.")
         conditioning, embedding = model.get_conditioning_latents(
-            audio_path=reference_paths
+            audio_path=reference_paths,
+            max_ref_length=REFERENCE_CHUNK_SECONDS,
+            gpt_cond_len=-1,
+            gpt_cond_chunk_len=6,
         )
         self._torch.save(
             {
                 "gpt_cond_latent": conditioning.detach().cpu(),
                 "speaker_embedding": embedding.detach().cpu(),
                 "model": MODEL_NAME,
+                "cache_version": CONDITIONING_CACHE_VERSION,
                 "created_at": datetime.now(UTC).isoformat(),
             },
             cache_path,

@@ -6,7 +6,7 @@ fica sempre no topo, pode ser recolhida e tem transparência ajustável.
 ## Recursos
 
 - texto para voz usando as vozes instaladas no Windows;
-- clonagem local de voz com XTTSv2 a partir de um áudio de referência;
+- clonagem local de voz com XTTSv2 a partir de um ou vários áudios de referência;
 - processamento automático por GPU, com fallback para CPU, ou seleção manual
   de GPU/CPU;
 - seleção de voz, volume, velocidade e tom;
@@ -23,8 +23,9 @@ fica sempre no topo, pode ser recolhida e tem transparência ajustável.
 
 O motor XTTS é iniciado e encerrado pelo próprio SVoice, sem uma segunda
 janela e sem exigir que o usuário instale ou abra o Python. Em **Configurações
-> Vozes clonadas**, selecione um áudio limpo de uma única pessoa e dê um nome à
-voz. Recomenda-se uma gravação de 10 a 30 segundos.
+> Vozes clonadas**, selecione um ou vários áudios limpos de uma única pessoa e
+dê um nome à voz. O SVoice aceita até 30 minutos no total, corta o material em
+trechos de 20 segundos e descarta automaticamente o conteúdo excedente.
 
 O modo **Automático** usa uma GPU NVIDIA compatível quando disponível. Se a
 GPU não estiver disponível ou não concluir a geração, o SVoice tenta novamente

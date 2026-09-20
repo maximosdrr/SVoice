@@ -440,12 +440,12 @@ class SVoiceController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> addClonedVoice({
+  Future<ClonedVoiceProfile> addClonedVoice({
     required String name,
     required List<String> referencePaths,
   }) async {
     if (!_xtts.isReady) await _initializeCloning();
-    cloningStatusMessage = 'Importando áudio de referência…';
+    cloningStatusMessage = 'Preparando e cortando os áudios…';
     _notify();
     try {
       final profile = await _xtts.addProfile(
@@ -456,6 +456,7 @@ class SVoiceController extends ChangeNotifier {
       _rebuildVoiceList();
       await selectVoice(_findVoice('xtts:${profile.id}'));
       cloningError = null;
+      return profile;
     } finally {
       cloningStatusMessage = null;
       _notify();

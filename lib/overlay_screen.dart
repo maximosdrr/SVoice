@@ -1148,7 +1148,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                       ),
                     ),
                     Text(
-                      '${profile.durationSeconds.toStringAsFixed(0)} s',
+                      _formatReferenceDuration(profile.durationSeconds),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: .3),
                         fontSize: 9.5,
@@ -1198,11 +1198,11 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       label: 'Áudio de referência',
       extensions: ['wav', 'mp3', 'm4a', 'flac', 'ogg'],
     );
-    final audioFile = await openFile(acceptedTypeGroups: [audioTypes]);
-    if (audioFile == null || !mounted) return;
+    final audioFiles = await openFiles(acceptedTypeGroups: [audioTypes]);
+    if (audioFiles.isEmpty || !mounted) return;
 
     final nameController = TextEditingController(
-      text: audioFile.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
+      text: audioFiles.first.name.replaceFirst(RegExp(r'\.[^.]+$'), ''),
     );
     var saving = false;
     String? dialogError;
@@ -1235,7 +1235,9 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    audioFile.name,
+                    audioFiles.length == 1
+                        ? audioFiles.first.name
+                        : '${audioFiles.length} áudios selecionados',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: accent.withValues(alpha: .8),
@@ -1244,7 +1246,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'Recomendado: 10–30 segundos, uma única pessoa, sem música ou ruído.',
+                    'Até 30 minutos no total. O SVoice corta os áudios em trechos menores e descarta automaticamente o que ultrapassar esse limite.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .4),
                       fontSize: 10.5,
@@ -1296,16 +1298,24 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                         dialogError = null;
                       });
                       try {
-                        await controller.addClonedVoice(
+                        final profile = await controller.addClonedVoice(
                           name: name,
-                          referencePaths: [audioFile.path],
+                          referencePaths: audioFiles
+                              .map((audio) => audio.path)
+                              .toList(growable: false),
                         );
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);
                         }
                         if (mounted) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(content: Text('Voz “$name” adicionada.')),
+                            SnackBar(
+                              content: Text(
+                                profile.wasTruncated
+                                    ? 'Voz “$name” adicionada. O áudio foi limitado aos primeiros 30 minutos.'
+                                    : 'Voz “$name” adicionada.',
+                              ),
+                            ),
                           );
                         }
                       } catch (error) {
@@ -1323,6 +1333,14 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       ),
     );
     nameController.dispose();
+  }
+
+  String _formatReferenceDuration(double seconds) {
+    final roundedSeconds = seconds.round();
+    if (roundedSeconds < 60) return '$roundedSeconds s';
+    final minutes = roundedSeconds ~/ 60;
+    final remainder = roundedSeconds % 60;
+    return remainder == 0 ? '$minutes min' : '$minutes min ${remainder}s';
   }
 
   Future<void> _deleteClonedVoice(ClonedVoiceProfile profile) async {

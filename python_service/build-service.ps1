@@ -68,6 +68,7 @@ try {
     --collect-all TTS `
     --collect-all trainer `
     --collect-all coqpit `
+    --collect-all imageio_ffmpeg `
     --collect-data transformers `
     --hidden-import TTS.tts.configs.xtts_config `
     --hidden-import TTS.tts.models.xtts `
