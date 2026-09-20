@@ -28,7 +28,7 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 
-SERVICE_VERSION = "1.1.1"
+SERVICE_VERSION = "1.1.2"
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg"}
 MAX_TEXT_LENGTH = 1000
@@ -36,6 +36,7 @@ MAX_REFERENCE_DURATION_SECONDS = 30 * 60
 REFERENCE_CHUNK_SECONDS = 20
 REFERENCE_SAMPLE_RATE = 24000
 CONDITIONING_CACHE_VERSION = 2
+MAX_JSON_BODY_BYTES = 1_000_000
 
 
 class ServiceError(Exception):
@@ -271,6 +272,13 @@ class SVoiceXttsService:
                 raise ServiceError(
                     "Use arquivos WAV, MP3, M4A, FLAC ou OGG como referência."
                 )
+            try:
+                if source.stat().st_size <= 0:
+                    raise ServiceError(f"O arquivo {source.name} está vazio.")
+            except OSError as error:
+                raise ServiceError(
+                    f"Não foi possível acessar o arquivo {source.name}."
+                ) from error
             normalized_path = os.path.normcase(str(source))
             if normalized_path in seen_paths:
                 continue
@@ -681,21 +689,68 @@ class ApiHandler(BaseHTTPRequestHandler):
         return hmac.compare_digest(provided, expected)
 
     def _read_payload(self) -> dict[str, Any]:
+        transfer_encoding = self.headers.get("Transfer-Encoding", "").casefold()
+        if transfer_encoding:
+            if transfer_encoding != "chunked":
+                raise ServiceError("Codificação da requisição não suportada.")
+            content = self._read_chunked_body()
+        else:
+            raw_length = self.headers.get("Content-Length")
+            if raw_length is None:
+                return {}
+            try:
+                length = int(raw_length)
+            except ValueError as error:
+                raise ServiceError("Tamanho da requisição inválido.") from error
+            if length < 0:
+                raise ServiceError("Tamanho da requisição inválido.")
+            if length == 0:
+                return {}
+            if length > MAX_JSON_BODY_BYTES:
+                raise ServiceError(
+                    "Requisição muito grande.",
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+            content = self.rfile.read(length)
+            if len(content) != length:
+                raise ServiceError("A requisição foi recebida de forma incompleta.")
+
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-        except ValueError:
-            length = 0
-        if length <= 0:
-            return {}
-        if length > 1_000_000:
-            raise ServiceError("Requisição muito grande.", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
-        try:
-            value = json.loads(self.rfile.read(length).decode("utf-8"))
+            value = json.loads(content.decode("utf-8"))
             if not isinstance(value, dict):
                 raise ValueError
             return value
         except (UnicodeDecodeError, ValueError, json.JSONDecodeError):
             raise ServiceError("JSON inválido.")
+
+    def _read_chunked_body(self) -> bytes:
+        content = bytearray()
+        while True:
+            size_line = self.rfile.readline(128)
+            if not size_line or len(size_line) >= 128 or not size_line.endswith(b"\r\n"):
+                raise ServiceError("A requisição foi recebida de forma incompleta.")
+            try:
+                chunk_size = int(size_line.split(b";", 1)[0].strip(), 16)
+            except ValueError as error:
+                raise ServiceError("Codificação da requisição inválida.") from error
+            if chunk_size < 0:
+                raise ServiceError("Codificação da requisição inválida.")
+            if chunk_size == 0:
+                while True:
+                    trailer = self.rfile.readline(8192)
+                    if trailer in {b"\r\n", b""}:
+                        return bytes(content)
+                    if len(trailer) >= 8192:
+                        raise ServiceError("Codificação da requisição inválida.")
+            if len(content) + chunk_size > MAX_JSON_BODY_BYTES:
+                raise ServiceError(
+                    "Requisição muito grande.",
+                    HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+                )
+            chunk = self.rfile.read(chunk_size)
+            if len(chunk) != chunk_size or self.rfile.read(2) != b"\r\n":
+                raise ServiceError("A requisição foi recebida de forma incompleta.")
+            content.extend(chunk)
 
     def _send_json(self, status: int, value: dict[str, Any]) -> None:
         content = json.dumps(value, ensure_ascii=False).encode("utf-8")

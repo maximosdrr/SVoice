@@ -101,6 +101,73 @@ class XtssServiceException implements Exception {
   String toString() => message;
 }
 
+const supportedVoiceReferenceExtensions = <String>{
+  '.wav',
+  '.mp3',
+  '.m4a',
+  '.flac',
+  '.ogg',
+};
+
+List<String> validateVoiceReferencePaths(Iterable<String> paths) {
+  final validatedPaths = <String>[];
+  final seenPaths = <String>{};
+
+  for (final rawPath in paths) {
+    final path = rawPath.trim();
+    if (path.isEmpty) {
+      throw const XtssServiceException(
+        'Um dos arquivos selecionados não possui um caminho local válido.',
+      );
+    }
+
+    final file = File(path).absolute;
+    final extensionIndex = file.path.lastIndexOf('.');
+    final extension = extensionIndex < 0
+        ? ''
+        : file.path.substring(extensionIndex).toLowerCase();
+    if (!supportedVoiceReferenceExtensions.contains(extension)) {
+      throw XtssServiceException(
+        'O arquivo “${file.uri.pathSegments.last}” não é um áudio compatível. '
+        'Use WAV, MP3, M4A, FLAC ou OGG.',
+      );
+    }
+
+    FileStat stat;
+    try {
+      stat = file.statSync();
+    } on FileSystemException {
+      throw XtssServiceException(
+        'Não foi possível acessar o arquivo “${file.uri.pathSegments.last}”. '
+        'Selecione-o novamente.',
+      );
+    }
+    if (stat.type != FileSystemEntityType.file) {
+      throw XtssServiceException(
+        'O arquivo “${file.uri.pathSegments.last}” não foi encontrado. '
+        'Selecione-o novamente.',
+      );
+    }
+    if (stat.size <= 0) {
+      throw XtssServiceException(
+        'O arquivo “${file.uri.pathSegments.last}” está vazio.',
+      );
+    }
+
+    final comparisonPath = Platform.isWindows
+        ? file.path.toLowerCase()
+        : file.path;
+    if (seenPaths.add(comparisonPath)) validatedPaths.add(file.path);
+  }
+
+  if (validatedPaths.isEmpty) {
+    throw const XtssServiceException(
+      'Selecione pelo menos um áudio de referência.',
+    );
+  }
+  return List<String>.unmodifiable(validatedPaths);
+}
+
 class XtssServiceClient {
   Process? _process;
   int? _port;
@@ -207,19 +274,35 @@ class XtssServiceClient {
     required List<String> referencePaths,
   }) async {
     final normalizedName = name?.trim();
+    final validatedPaths = validateVoiceReferencePaths(referencePaths);
     final json = await _request(
       'POST',
       '/profiles',
       body: {
         if (normalizedName != null && normalizedName.isNotEmpty)
           'name': normalizedName,
-        'reference_paths': referencePaths,
+        'reference_paths': validatedPaths,
       },
       timeout: const Duration(minutes: 45),
     );
-    return ClonedVoiceProfile.fromJson(
-      Map<String, dynamic>.from(json['profile'] as Map),
+    final rawProfile = json['profile'];
+    if (rawProfile is! Map) {
+      throw const XtssServiceException(
+        'O mecanismo XTTS retornou uma resposta incompleta ao adicionar a voz.',
+      );
+    }
+    final profile = ClonedVoiceProfile.fromJson(
+      Map<String, dynamic>.from(rawProfile),
     );
+    if (profile.id.isEmpty ||
+        profile.name.trim().isEmpty ||
+        profile.referenceCount < 1 ||
+        profile.durationSeconds <= 0) {
+      throw const XtssServiceException(
+        'O mecanismo XTTS não confirmou corretamente a voz adicionada.',
+      );
+    }
+    return profile;
   }
 
   Future<void> deleteProfile(String id) async {
@@ -321,13 +404,23 @@ class XtssServiceClient {
       );
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       request.headers.contentType = ContentType.json;
-      if (body != null) request.write(jsonEncode(body));
+      if (body != null) {
+        final encodedBody = utf8.encode(jsonEncode(body));
+        request.contentLength = encodedBody.length;
+        request.add(encodedBody);
+      }
       final response = await request.close().timeout(timeout);
       final responseText = await utf8.decoder.bind(response).join();
       Map<String, dynamic> json = const {};
       if (responseText.isNotEmpty) {
-        final decoded = jsonDecode(responseText);
-        if (decoded is Map) json = Map<String, dynamic>.from(decoded);
+        try {
+          final decoded = jsonDecode(responseText);
+          if (decoded is Map) json = Map<String, dynamic>.from(decoded);
+        } on FormatException {
+          throw const XtssServiceException(
+            'O mecanismo XTTS retornou uma resposta inválida.',
+          );
+        }
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw XtssServiceException(

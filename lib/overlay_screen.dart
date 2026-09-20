@@ -1198,10 +1198,38 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       label: 'Áudio de referência',
       extensions: ['wav', 'mp3', 'm4a', 'flac', 'ogg'],
     );
-    final audioFiles = await openFiles(acceptedTypeGroups: [audioTypes]);
+    List<XFile> audioFiles;
+    try {
+      audioFiles = await openFiles(acceptedTypeGroups: [audioTypes]);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível abrir o seletor de arquivos. Tente novamente.',
+          ),
+        ),
+      );
+      return;
+    }
     if (audioFiles.isEmpty || !mounted) return;
 
-    final automaticName = audioFiles.first.name.replaceFirst(
+    List<String> referencePaths;
+    try {
+      referencePaths = validateVoiceReferencePaths(
+        audioFiles.map((audio) => audio.path),
+      );
+    } on XtssServiceException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+
+    final selectedNames = referencePaths
+        .map((path) => File(path).uri.pathSegments.last)
+        .toList(growable: false);
+    final automaticName = selectedNames.first.replaceFirst(
       RegExp(r'\.[^.]+$'),
       '',
     );
@@ -1230,16 +1258,24 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                     controller: nameController,
                     autofocus: true,
                     enabled: !saving,
+                    maxLength: 80,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.deny(
+                        RegExp(r'[\x00-\x1F\x7F]'),
+                      ),
+                    ],
                     decoration: InputDecoration(
                       labelText: 'Nome da voz (opcional)',
                       hintText: 'Automático: $automaticName',
+                      counterText: '',
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    audioFiles.length == 1
-                        ? audioFiles.first.name
-                        : '${audioFiles.length} áudios selecionados',
+                    selectedNames.length == 1
+                        ? selectedNames.first
+                        : '${selectedNames.length} áudios selecionados',
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: accent.withValues(alpha: .8),
@@ -1296,9 +1332,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                       try {
                         final profile = await controller.addClonedVoice(
                           name: name,
-                          referencePaths: audioFiles
-                              .map((audio) => audio.path)
-                              .toList(growable: false),
+                          referencePaths: referencePaths,
                         );
                         if (dialogContext.mounted) {
                           Navigator.pop(dialogContext);

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
 import wave
+from email.message import Message
 from pathlib import Path
 import subprocess
 import sys
@@ -12,7 +14,59 @@ SERVICE_DIRECTORY = Path(__file__).resolve().parents[1]
 if str(SERVICE_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIRECTORY))
 
-from service import ServiceError, SVoiceXttsService
+from service import ApiHandler, ServiceError, SVoiceXttsService
+
+
+class ApiPayloadTests(unittest.TestCase):
+    @staticmethod
+    def _handler(headers: dict[str, str], content: bytes) -> ApiHandler:
+        handler = object.__new__(ApiHandler)
+        handler.headers = Message()
+        for name, value in headers.items():
+            handler.headers[name] = value
+        handler.rfile = io.BytesIO(content)
+        return handler
+
+    def test_reads_json_with_content_length(self) -> None:
+        content = '{"name":"Voz ç","reference_paths":["C:/voz.mp3"]}'.encode()
+        handler = self._handler({"Content-Length": str(len(content))}, content)
+
+        payload = handler._read_payload()
+
+        self.assertEqual(payload["name"], "Voz ç")
+        self.assertEqual(payload["reference_paths"], ["C:/voz.mp3"])
+
+    def test_reads_chunked_json_for_compatibility(self) -> None:
+        content = '{"name":"Voz ç","reference_paths":["C:/voz.mp3"]}'.encode()
+        parts = (content[:7], content[7:19], content[19:])
+        encoded = b"".join(
+            f"{len(part):X}\r\n".encode() + part + b"\r\n" for part in parts
+        ) + b"0\r\n\r\n"
+        handler = self._handler({"Transfer-Encoding": "chunked"}, encoded)
+
+        payload = handler._read_payload()
+
+        self.assertEqual(payload["name"], "Voz ç")
+        self.assertEqual(payload["reference_paths"], ["C:/voz.mp3"])
+
+    def test_rejects_truncated_and_malformed_requests(self) -> None:
+        cases = (
+            ({"Content-Length": "10"}, b"{}"),
+            ({"Content-Length": "invalid"}, b"{}"),
+            ({"Transfer-Encoding": "gzip"}, b"{}"),
+            ({"Transfer-Encoding": "chunked"}, b"G\r\n{}\r\n0\r\n\r\n"),
+        )
+        for headers, content in cases:
+            with self.subTest(headers=headers), self.assertRaises(ServiceError):
+                self._handler(headers, content)._read_payload()
+
+    def test_rejects_oversized_request_before_reading_it(self) -> None:
+        handler = self._handler({"Content-Length": "1000001"}, b"")
+
+        with self.assertRaises(ServiceError) as captured:
+            handler._read_payload()
+
+        self.assertEqual(captured.exception.status, 413)
 
 
 class ProfileRegistryTests(unittest.TestCase):
@@ -85,12 +139,15 @@ class ProfileRegistryTests(unittest.TestCase):
         self.assertEqual(profile["reference_count"], 1)
 
     def test_rejects_missing_or_invalid_reference_paths(self) -> None:
+        empty_reference = self.root / "empty.wav"
+        empty_reference.touch()
         invalid_payloads = (
             {},
             {"reference_paths": []},
             {"reference_paths": "reference.wav"},
             {"reference_paths": [""]},
             {"reference_paths": [str(self.root / "missing.wav")]},
+            {"reference_paths": [str(empty_reference)]},
         )
 
         for payload in invalid_payloads:

@@ -1,5 +1,5 @@
 #define MyAppName "SVoice"
-#define MyAppVersion "1.4.2"
+#define MyAppVersion "1.4.3"
 #define MyAppPublisher "SVoice"
 #define MyAppExeName "SVoice.exe"
 
