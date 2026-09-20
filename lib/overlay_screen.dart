@@ -41,6 +41,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
     window: const WindowManagerOverlayWindow(),
   );
   HotKey? _visibilityHotKey;
+  String? _visibilityHotKeyError;
   PanelMode _mode = PanelMode.chat;
   bool _alwaysOnTop = true;
   bool _isClosing = false;
@@ -81,7 +82,18 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       }
     }
     if (!mounted) return;
-    await _registerVisibilityHotKey(hotKey);
+    try {
+      await _registerVisibilityHotKey(hotKey);
+    } catch (error, stackTrace) {
+      debugPrint('Não foi possível registrar a hotkey global: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) {
+        setState(() {
+          _visibilityHotKeyError =
+              'Atalho indisponível — clique para escolher outro';
+        });
+      }
+    }
   }
 
   Future<void> _registerVisibilityHotKey(HotKey hotKey) async {
@@ -95,6 +107,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       keyDownHandler: (_) => _toggleVisibility(),
     );
     _visibilityHotKey = hotKey;
+    _visibilityHotKeyError = null;
     if (mounted) setState(() {});
   }
 
@@ -295,9 +308,24 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
           jsonEncode(chosen.toJson()),
         );
       }
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Não foi possível salvar a hotkey global: $error');
+      debugPrintStack(stackTrace: stackTrace);
       if (widget.enableDesktopFeatures) {
-        await _registerVisibilityHotKey(previous);
+        try {
+          await _registerVisibilityHotKey(previous);
+        } catch (restoreError, restoreStackTrace) {
+          debugPrint(
+            'Não foi possível restaurar a hotkey anterior: $restoreError',
+          );
+          debugPrintStack(stackTrace: restoreStackTrace);
+          if (mounted) {
+            setState(() {
+              _visibilityHotKeyError =
+                  'Atalho indisponível — clique para escolher outro';
+            });
+          }
+        }
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -967,9 +995,11 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    _shortcutLabel(),
+                    _visibilityHotKeyError ?? _shortcutLabel(),
                     style: TextStyle(
-                      color: accent.withValues(alpha: .72),
+                      color: _visibilityHotKeyError == null
+                          ? accent.withValues(alpha: .72)
+                          : const Color(0xFFFF7C87),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
