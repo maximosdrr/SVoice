@@ -1,0 +1,15 @@
+SVOICE - AVISO SOBRE CLONAGEM DE VOZ XTTSv2
+
+O mecanismo de clonagem utiliza o pacote coqui-tts, distribuído sob a licença
+MPL 2.0, e o modelo XTTSv2, distribuído sob a Coqui Public Model License 1.0.0.
+
+O modelo XTTSv2 e seus resultados são permitidos somente para usos não
+comerciais conforme os termos oficiais:
+
+https://huggingface.co/coqui/XTTS-v2/blob/main/LICENSE.txt
+
+O modelo não é incluído neste instalador. Ele é baixado no primeiro uso da
+voz clonada.
+
+Utilize clonagem de voz apenas com autorização do titular da voz. Não use esta
+função para personificação, fraude, desinformação ou violação de privacidade.

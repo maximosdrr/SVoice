@@ -1,0 +1,23 @@
+VB-CABLE Virtual Audio Device — atribuição e licença
+====================================================
+
+O instalador do SVoice inclui o pacote oficial e inalterado do VB-CABLE para
+criar o microfone virtual usado pelo Discord.
+
+VB-CABLE é um produto da VB-Audio Software.
+Origem: https://vb-cable.com e https://vb-audio.com
+
+VB-CABLE é DONATIONWARE — todas as contribuições são bem-vindas. Se ele for
+útil para você, considere apoiar o desenvolvimento em:
+https://vb-audio.com/Cable/
+
+O pacote base do VB-CABLE é redistribuído conforme a autorização de distribuição
+da VB-Audio para integração com outras aplicações, mantendo o modelo donationware:
+https://vb-audio.com/Services/licensing.htm
+
+Somente o VB-CABLE base está incluído. Os pacotes adicionais A+B e C+D não são
+redistribuídos. Todos os direitos sobre o VB-CABLE pertencem à VB-Audio Software.
+
+O VB-CABLE é um componente compartilhado e pode ser usado por outros programas.
+Por esse motivo, a desinstalação do SVoice não remove automaticamente o driver.
+Ele pode ser removido separadamente em Aplicativos instalados do Windows.

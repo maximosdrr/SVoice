@@ -1,0 +1,10 @@
+<Application
+    x:Class="SVoice.GameBar.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedTheme="Dark">
+    <Application.Resources>
+        <SolidColorBrush x:Key="SVoiceAccentBrush" Color="#8BE9D2" />
+        <SolidColorBrush x:Key="SVoiceMutedBrush" Color="#8AFFFFFF" />
+    </Application.Resources>
+</Application>
