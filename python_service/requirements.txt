@@ -1,8 +1,0 @@
-coqui-tts==0.27.5
-transformers>=4.57,<5
-torch>=2.2
-torchaudio
-torchcodec
-mutagen==1.47.0
-imageio-ffmpeg==0.6.0
-pyinstaller>=6.10,<7

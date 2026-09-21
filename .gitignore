@@ -1,41 +1,19 @@
 # Miscellaneous
-*.class
 *.log
 *.pyc
 *.swp
 .DS_Store
-.atom/
-.build/
-.buildlog/
 .history
-.svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
+# IDE
 *.iml
-*.ipr
-*.iws
 .idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
 #.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
+# Build outputs and artifacts
 /build/
-/coverage/
-/test/failures/
 /.tools/
 /artifacts/
-**/flutter/ephemeral/
 
 # Visual Studio / Game Bar generated artifacts
 **/.vs/
@@ -44,27 +22,8 @@ migrate_working_dir/
 **/AppPackages/
 /gamebar/SVoice.GameBar/Bridge/
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Widget Preview related
-.widget_preview/
-
-# Integrated XTTS build artifacts
-/python_service/.build-venv/
-/python_service/build/
-/python_service/dist/
-/python_service/*.spec
-/python_service/**/__pycache__/
-
-# Standalone XTTS service runtime build outputs
+# Standalone XTTS service: runtime build outputs and local environments
 /service/runtime/.build/
+/service/.venv/
 /service/**/__pycache__/
+/.pytest_cache/
