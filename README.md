@@ -46,10 +46,12 @@ Requisitos de desenvolvimento:
 
 - Windows 10/11 x64;
 - .NET SDK 10;
-- Visual Studio Build Tools com SDK UWP/Windows;
+- Visual Studio 2026 (ou Build Tools) com ferramentas UWP e Windows SDK 10.0.26100;
+- Python 3.12 (apenas para o `pip` que monta os packs de runtime);
 - Inno Setup 7;
-- PowerShell 7;
-- conexão durante a criação inicial dos packs de runtime.
+- Windows PowerShell 5.1 ou PowerShell 7;
+- conexão durante a criação inicial dos packs de runtime (download de wheels
+  do PyTorch e do Python embutido).
 
 Gerar runtimes, MSIX e instalador:
 
@@ -65,8 +67,13 @@ Os artefatos são criados em `artifacts/`, diretório ignorado pelo Git.
 
 ```powershell
 dotnet build .\installer\SVoice.Setup\SVoice.Setup.csproj -c Release -p:Platform=x64
-python -m pytest .\service\tests -q
+.\gamebar\build-widget.ps1 -Configuration Debug
+& "C:\Program Files\SVoice\runtime\python\python.exe" .\service\tools\run_tests.py
 ```
+
+`run_tests.py` ativa os packs do runtime instalado (ou de `service\runtime`)
+para que os testes rodem sem um ambiente virtual. O teste ponta a ponta com o
+modelo real fica em `service\tools\service_client.py` (`e2e`).
 
 O aceite de um backend de GPU exige também o teste integrado de carga do
 modelo, síntese curta e longa, chamadas consecutivas, cancelamento e fallback.
