@@ -9,7 +9,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap uap3 desktop desktop6 rescap mp">
 
-  <Identity Name="SVoice.GameBar" Publisher="CN=SVoice Development" Version="2.0.1.0" />
+  <Identity Name="SVoice.GameBar" Publisher="CN=SVoice Development" Version="2.0.2.0" />
   <mp:PhoneIdentity PhoneProductId="7664ef47-b101-4429-8baa-1dad63fe8896" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
@@ -61,12 +61,12 @@
                 <Window>
                   <AllowForegroundTransparency>true</AllowForegroundTransparency>
                   <Size>
-                    <Height>270</Height>
-                    <Width>470</Width>
-                    <MinHeight>245</MinHeight>
+                    <Height>300</Height>
+                    <Width>500</Width>
+                    <MinHeight>270</MinHeight>
                     <MinWidth>400</MinWidth>
-                    <MaxHeight>360</MaxHeight>
-                    <MaxWidth>650</MaxWidth>
+                    <MaxHeight>480</MaxHeight>
+                    <MaxWidth>760</MaxWidth>
                   </Size>
                   <ResizeSupported>
                     <Horizontal>true</Horizontal>

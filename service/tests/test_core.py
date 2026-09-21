@@ -15,7 +15,7 @@ SERVICE_DIRECTORY = Path(__file__).resolve().parents[1]
 if str(SERVICE_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIRECTORY))
 
-from svoice_xtts import backends, model, runtime  # noqa: E402
+from svoice_xtts import backends, model, runtime, service as service_module  # noqa: E402
 from svoice_xtts.api import ApiHandler  # noqa: E402
 from svoice_xtts.engine import ConfigStore, sanitize_text, split_into_chunks  # noqa: E402
 from svoice_xtts.errors import CancelledError, ServiceError  # noqa: E402
@@ -119,6 +119,27 @@ class ConfigStoreTests(unittest.TestCase):
             path.write_text("{invalid", encoding="utf-8")
             config = ConfigStore(path)
             self.assertEqual(config.compute_mode, "auto")
+
+
+class DiscoveryRaceTests(unittest.TestCase):
+    def test_waits_until_live_discovery_is_published(self) -> None:
+        payload = {"pid": 123, "port": 456, "token": "test-token"}
+        with patch.object(service_module, "read_discovery", side_effect=[None, payload]), patch.object(
+            service_module, "_pid_alive", return_value=True
+        ), patch.object(service_module.time, "sleep"):
+            found = service_module.wait_for_discovery(object(), timeout=1)
+        self.assertEqual(found, payload)
+
+    def test_second_instance_prints_adoptable_endpoint(self) -> None:
+        payload = {"pid": 123, "port": 456, "token": "test-token", "protocol_version": 2}
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            service_module.SingleInstance, "acquire", return_value=False
+        ), patch.object(service_module, "wait_for_discovery", return_value=payload), patch("builtins.print") as output:
+            code = service_module.main(["--data-dir", directory, "--print-discovery"])
+        self.assertEqual(code, service_module.EXIT_ALREADY_RUNNING)
+        printed = json.loads(output.call_args.args[0])
+        self.assertTrue(printed["already_running"])
+        self.assertEqual(printed["token"], "test-token")
 
 
 class BackendSelectionTests(unittest.TestCase):

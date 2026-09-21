@@ -11,7 +11,7 @@
     <RootNamespace>SVoice.Setup</RootNamespace>
     <AssemblyTitle>SVoice Setup Helper</AssemblyTitle>
     <Product>SVoice</Product>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationManifest>app.manifest</ApplicationManifest>
