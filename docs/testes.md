@@ -42,8 +42,9 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Áudio chega ao `CABLE Input` e sai em `CABLE Output` | ✅ gravação de `CABLE Output` via FFmpeg durante a fala: ~3 s com RMS 0,09–0,13 |
 | Abertura dentro da Xbox Game Bar (`GameBarContext=True`) com serviço instalado, `state=ready`, `model_ready=True`, perfil listado | ✅ 19:35, 19:52, 19:59, 20:07 |
 | Reabertura do widget reutilizando o serviço já em execução (sem recarregar o modelo) | ✅ 20:07 (bridge de 19:59 adotado) |
-| Clonagem iniciada de dentro da Game Bar (perfil criado, condicionamento) | ⚠️ perfil criado 20:07:42; o carregamento do modelo travou no cache do numba (processo com identidade do pacote gravando em Program Files). Corrigido em 2.0.4 (`_configure_caches`); **reteste pendente com o 2.0.4** |
-| Síntese, cancelamento (Esc), histórico e Eco dentro da Game Bar | ⏳ pendente com o 2.0.4 (funções verificadas na janela standalone, mesmo código) |
+| Clonagem de dentro da Game Bar com 2.0.3 | ⚠️ perfil criado 20:07:42; o carregamento do modelo travou no cache do numba (processo com identidade do pacote gravando em Program Files). Corrigido em 2.0.4 (`_configure_caches`) |
+| Clonagem e síntese de dentro da Game Bar com 2.0.4 (usuário) | ✅ 20:32:48 widget aberto (`GameBarContext=True`, 3 perfis); 20:33:28 perfil criado (2 trechos, 20,1 s); modelo carregado em 25,2 s; 20:34:00 `backend=cuda`, 4 perfis; sínteses às 20:34:18 e 20:34:27 com o perfil novo |
+| Cancelamento (Esc), histórico e Eco dentro da Game Bar | ⚠️ exercitados pelo usuário sem registro em log (funções verificadas na janela standalone, mesmo código) |
 
 ## Instalador (`SVoice.Setup` + Inno Setup)
 
@@ -52,7 +53,7 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | `check`, `detect-gpu` → `torch-cuda`, `vbcable` (registro + dispositivos + assinatura Authenticode do pacote oficial) | ✅ |
 | `install-runtime` offline com SHA-256 e extração atômica; `ensure-model` reutilizando/migrando o modelo; `test-service` | ✅ `install-diagnostics.json` 19:58: CUDA, síntese curta 4,8 s |
 | Primeira instalação (2.0.1) substituindo o SVoice Flutter 1.4.7 | ✅ 18:44 — legado removido, `Program Files\SVoice` novo, perfil e modelo preservados |
-| Atualização 2.0.1 → 2.0.2 → 2.0.3 sem perda de perfis/modelo | ✅ 19:00, 19:23, 19:45, 19:58; "Verification (post-install): ok" em todas |
+| Atualização 2.0.1 → 2.0.2 → 2.0.3 → 2.0.4 sem perda de perfis/modelo | ✅ 19:00, 19:23, 19:45, 19:58, 20:24; "Verification (post-install): ok" em todas; teste CUDA do instalador 2.0.4 às 20:24:41 |
 | Desinstalação preservando dados + reinstalação limpa (runtime removido pelo desinstalador e reextraído) | ✅ 19:08 → 19:16 e 19:21 → 19:23 (`Widget removed` → `Runtime pack installed` ×3), `profiles.json` intacto |
 | Desinstalação removendo dados mediante confirmação | ⏳ não executado (dados do usuário mantidos propositalmente nesta máquina) |
 | Reparo (`Reparar SVoice`) | ⏳ |
