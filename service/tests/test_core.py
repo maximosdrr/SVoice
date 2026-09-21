@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import sys
 import tempfile
 import threading
@@ -140,6 +141,34 @@ class DiscoveryRaceTests(unittest.TestCase):
         printed = json.loads(output.call_args.args[0])
         self.assertTrue(printed["already_running"])
         self.assertEqual(printed["token"], "test-token")
+
+
+class LauncherCacheTests(unittest.TestCase):
+    def test_caches_are_redirected_to_writable_directory(self) -> None:
+        import importlib
+
+        launcher = importlib.import_module("svoice_xtts_service")
+        names = ["NUMBA_CACHE_DIR", "PYTHONPYCACHEPREFIX", "MPLCONFIGDIR", "HF_HOME", "XDG_CACHE_HOME"]
+        saved = {name: os.environ.pop(name, None) for name in names}
+        saved_prefix = sys.pycache_prefix
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / "Cache"
+                launcher._configure_caches(root)
+                self.assertEqual(os.environ["NUMBA_CACHE_DIR"], str(root / "numba"))
+                self.assertTrue((root / "numba").is_dir())
+                self.assertEqual(sys.pycache_prefix, str(root / "pycache"))
+                # Existing user overrides win.
+                os.environ["NUMBA_CACHE_DIR"] = "custom"
+                launcher._configure_caches(root)
+                self.assertEqual(os.environ["NUMBA_CACHE_DIR"], "custom")
+        finally:
+            for name, value in saved.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+            sys.pycache_prefix = saved_prefix
 
 
 class BackendSelectionTests(unittest.TestCase):

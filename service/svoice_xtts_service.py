@@ -42,6 +42,7 @@ def _bootstrap() -> tuple[list[str], dict]:
         runtime_dir = Path(env_dir) if env_dir else here.parent / "runtime"
     layout = runtime.discover_layout(runtime_dir if runtime_dir.is_dir() else None)
     data_dir = (known.data_dir or (default_root() / "XTTS")).expanduser()
+    _configure_caches(data_dir.parent / "Cache")
     config = runtime.load_config_hints(data_dir)
     if known.torch_pack:
         torch_pack, reason = known.torch_pack, "pacote informado na linha de comando"
@@ -53,6 +54,31 @@ def _bootstrap() -> tuple[list[str], dict]:
     if known.data_dir is not None:
         remaining = ["--data-dir", str(known.data_dir), *remaining]
     return remaining, info
+
+
+def _configure_caches(cache_root: Path) -> None:
+    """Point every library cache at a user-writable directory.
+
+    The runtime lives under Program Files (read-only). Without this, numba
+    probes ``__pycache__`` next to librosa with ``tempfile`` and, in a process
+    carrying the MSIX package identity, each denied attempt is slow enough that
+    the 10 000-retry loop hangs the first import for many minutes. Bytecode,
+    matplotlib and Hugging Face caches get the same treatment.
+    """
+    targets = {
+        "NUMBA_CACHE_DIR": cache_root / "numba",
+        "PYTHONPYCACHEPREFIX": cache_root / "pycache",
+        "MPLCONFIGDIR": cache_root / "matplotlib",
+        "HF_HOME": cache_root / "huggingface",
+        "XDG_CACHE_HOME": cache_root / "xdg",
+    }
+    for name, directory in targets.items():
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+        os.environ.setdefault(name, str(directory))
+    sys.pycache_prefix = os.environ.get("PYTHONPYCACHEPREFIX")
 
 
 def main() -> int:
