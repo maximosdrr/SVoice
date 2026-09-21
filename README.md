@@ -17,6 +17,8 @@ fica sempre no topo, pode ser recolhida e tem transparência ajustável.
 - atalho global configurável para ocultar ou trazer a janela (inicialmente
   `Shift + Aspas`);
 - modo compacto e opção de manter o overlay sempre no topo;
+- widget fixável para Xbox Game Bar com clonagem XTTS, seleção de perfis e
+  modo Eco independente;
 - guia integrado para conectar a saída ao Discord;
 - preferências salvas entre execuções.
 - instalador completo com microfone virtual e roteamento automático do TTS.
@@ -80,6 +82,19 @@ Python é necessário somente no computador de desenvolvimento.
 flutter pub get
 flutter run -d windows
 ```
+
+## Widget da Xbox Game Bar
+
+O widget permite digitar, clonar uma voz com áudios de referência, selecionar
+perfis XTTS e transmitir o TTS sem sair do jogo. Para gerar o pacote MSIX
+assinado e seu instalador local:
+
+```powershell
+.\gamebar\build-widget-package.ps1
+```
+
+Os arquivos são gerados em `artifacts\gamebar`. Mais detalhes estão em
+`gamebar\README.md`.
 
 ## Validar e compilar
 

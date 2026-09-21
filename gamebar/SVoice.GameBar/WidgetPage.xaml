@@ -26,6 +26,8 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="8" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0">
@@ -152,9 +154,66 @@
                 </Grid>
             </Border>
 
+            <Grid Grid.Row="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="6" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="6" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock
+                    VerticalAlignment="Center"
+                    FontSize="9"
+                    FontWeight="Bold"
+                    Foreground="#70FFFFFF"
+                    CharacterSpacing="100"
+                    Text="VOZ" />
+
+                <ComboBox
+                    x:Name="VoiceBox"
+                    Grid.Column="2"
+                    MinWidth="120"
+                    Height="30"
+                    Padding="8,1"
+                    FontSize="10"
+                    SelectionChanged="VoiceBox_SelectionChanged" />
+
+                <Button
+                    x:Name="CloneVoiceButton"
+                    Grid.Column="4"
+                    Height="30"
+                    Padding="8,1"
+                    Click="CloneVoiceButton_Click"
+                    ToolTipService.ToolTip="Criar uma voz clonada com áudios de referência">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Margin="0,0,5,0" FontSize="11" Glyph="&#xE8D4;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="9"
+                            FontWeight="SemiBold"
+                            Text="CLONAR" />
+                    </StackPanel>
+                </Button>
+
+                <Button
+                    x:Name="RefreshVoicesButton"
+                    Grid.Column="6"
+                    Width="30"
+                    Height="30"
+                    Padding="0"
+                    Click="RefreshVoicesButton_Click"
+                    ToolTipService.ToolTip="Atualizar vozes clonadas">
+                    <FontIcon FontSize="11" Glyph="&#xE72C;" />
+                </Button>
+            </Grid>
+
             <Border
                 x:Name="HistoryPanel"
-                Grid.Row="4"
+                Grid.Row="6"
                 Padding="10,7"
                 Background="#0DFFFFFF"
                 CornerRadius="10"
@@ -181,16 +240,39 @@
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="6">
+            <Grid Grid.Row="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
                 <TextBlock
+                    VerticalAlignment="Center"
                     FontSize="9.5"
                     Foreground="#65FFFFFF"
                     Text="Enter: falar  •  Esc: parar" />
-                <TextBlock
-                    HorizontalAlignment="Right"
-                    FontSize="9.5"
-                    Foreground="#55FFFFFF"
-                    Text="Fixe pela barra superior da Game Bar" />
+
+                <ToggleButton
+                    x:Name="EchoButton"
+                    Grid.Column="1"
+                    MinWidth="62"
+                    Height="26"
+                    Padding="8,2"
+                    Click="EchoButton_Click"
+                    IsEnabled="False"
+                    ToolTipService.ToolTip="Ouvir também na saída padrão do Windows">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon
+                            Margin="0,0,5,0"
+                            FontSize="11"
+                            Glyph="&#xE767;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="9"
+                            FontWeight="SemiBold"
+                            Text="ECO" />
+                    </StackPanel>
+                </ToggleButton>
             </Grid>
         </Grid>
     </Grid>

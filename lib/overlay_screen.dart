@@ -548,9 +548,12 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
                 ),
               ),
               _headerButton(
-                icon: Icons.remove_rounded,
-                tooltip: 'Minimizar',
-                onPressed: _windowController.minimize,
+                icon: Icons.visibility_off_rounded,
+                tooltip: 'Ocultar — mostrar com ${_shortcutLabel()}',
+                onPressed:
+                    !widget.enableDesktopFeatures || _visibilityHotKey != null
+                    ? _windowController.hide
+                    : null,
               ),
               _headerButton(
                 icon: Icons.close_rounded,
@@ -567,7 +570,7 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
   Widget _headerButton({
     required IconData icon,
     required String tooltip,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     bool active = false,
   }) {
     return SizedBox(
@@ -580,7 +583,9 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
         icon: Icon(
           icon,
           size: 16,
-          color: active ? accent : Colors.white.withValues(alpha: .55),
+          color: active
+              ? accent
+              : Colors.white.withValues(alpha: onPressed == null ? .24 : .55),
         ),
       ),
     );

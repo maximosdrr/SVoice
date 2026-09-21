@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using Microsoft.Gaming.XboxGameBar;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.ApplicationModel.AppService;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
@@ -10,7 +12,7 @@ namespace SVoice.GameBar
 {
     sealed partial class App : Application
     {
-        private XboxGameBarWidget _widget;
+        private XboxGameBarWidget? _widget;
 
         public App()
         {
@@ -20,26 +22,61 @@ namespace SVoice.GameBar
 
         protected override void OnActivated(IActivatedEventArgs args)
         {
-            XboxGameBarWidgetActivatedEventArgs widgetArgs = null;
-
-            if (args.Kind == ActivationKind.Protocol &&
-                args is IProtocolActivatedEventArgs protocolArgs &&
-                protocolArgs.Uri.Scheme.Equals("ms-gamebarwidget", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                widgetArgs = args as XboxGameBarWidgetActivatedEventArgs;
+                Log($"Activation received. Kind={args.Kind}; RuntimeType={args.GetType().FullName}");
+                XboxGameBarWidgetActivatedEventArgs? widgetArgs = null;
+
+                if (args.Kind == ActivationKind.Protocol)
+                {
+                    widgetArgs = GetWidgetActivationArgs(args);
+                }
+
+                if (widgetArgs == null)
+                {
+                    Log("Game Bar activation arguments could not be projected.");
+                    ShowActivationError("A Game Bar não conseguiu inicializar o widget.");
+                    return;
+                }
+
+                Log($"Widget activation. Extension={widgetArgs.AppExtensionId}; Launch={widgetArgs.IsLaunchActivation}");
+                if (!widgetArgs.IsLaunchActivation)
+                {
+                    return;
+                }
+
+                var frame = CreateFrame();
+                Window.Current.Content = frame;
+                _widget = new XboxGameBarWidget(widgetArgs, Window.Current.CoreWindow, frame);
+                if (!frame.Navigate(typeof(WidgetPage), _widget))
+                {
+                    throw new InvalidOperationException("A página do widget recusou a navegação.");
+                }
+
+                Window.Current.Closed += WidgetWindowClosed;
+                Window.Current.Activate();
+                Log("Widget window activated successfully.");
+            }
+            catch (Exception exception)
+            {
+                Log($"Widget activation failed: {exception}");
+                ShowActivationError("Não foi possível carregar o SVoice. Feche o widget e tente novamente.");
+            }
+        }
+
+        private static XboxGameBarWidgetActivatedEventArgs? GetWidgetActivationArgs(IActivatedEventArgs args)
+        {
+            if (args is XboxGameBarWidgetActivatedEventArgs projectedArgs)
+            {
+                return projectedArgs;
             }
 
-            if (widgetArgs == null || !widgetArgs.IsLaunchActivation)
+            if (args is WinRT.IWinRTObject winRtObject)
             {
-                return;
+                return XboxGameBarWidgetActivatedEventArgs.FromAbi(winRtObject.NativeObject.ThisPtr);
             }
 
-            var frame = CreateFrame();
-            Window.Current.Content = frame;
-            _widget = new XboxGameBarWidget(widgetArgs, Window.Current.CoreWindow, frame);
-            frame.Navigate(typeof(WidgetPage), _widget);
-            Window.Current.Closed += WidgetWindowClosed;
-            Window.Current.Activate();
+            return null;
         }
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -55,12 +92,55 @@ namespace SVoice.GameBar
             Window.Current.Activate();
         }
 
+        protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
+        {
+            if (args.TaskInstance.TriggerDetails is AppServiceTriggerDetails details &&
+                details.Name.Equals(XttsBridgeChannel.ServiceName, StringComparison.Ordinal))
+            {
+                var deferral = args.TaskInstance.GetDeferral();
+                XttsBridgeChannel.Accept(details.AppServiceConnection, deferral);
+                Log("XTTS App Service connection accepted.");
+                return;
+            }
+
+            base.OnBackgroundActivated(args);
+        }
+
         private static Frame CreateFrame()
         {
             var frame = new Frame();
             frame.NavigationFailed += (_, eventArgs) =>
                 throw new Exception($"Não foi possível abrir {eventArgs.SourcePageType.FullName}");
             return frame;
+        }
+
+        private static void ShowActivationError(string message)
+        {
+            var text = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(24),
+            };
+            Window.Current.Content = new Grid { Children = { text } };
+            Window.Current.Activate();
+        }
+
+        internal static void Log(string message)
+        {
+            try
+            {
+                var path = Path.Combine(
+                    Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+                    "gamebar.log");
+                File.AppendAllText(path, $"{DateTimeOffset.Now:O} {message}{Environment.NewLine}");
+            }
+            catch
+            {
+                // Logging must never prevent the widget from opening.
+            }
         }
 
         private void WidgetWindowClosed(object sender, Windows.UI.Core.CoreWindowEventArgs args)

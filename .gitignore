@@ -42,6 +42,7 @@ migrate_working_dir/
 **/bin/
 **/obj/
 **/AppPackages/
+/gamebar/SVoice.GameBar/Bridge/
 
 # Symbolication related
 app.*.symbols

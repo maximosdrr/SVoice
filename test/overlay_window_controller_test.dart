@@ -16,6 +16,30 @@ void main() {
     expect(window.calls, ['isMinimized', 'isVisible', 'hide']);
   });
 
+  test('hide button hides the window and the next toggle reveals it', () async {
+    final window = FakeOverlayWindow(visible: true);
+    final controller = OverlayWindowController(window: window, delay: noDelay);
+
+    await controller.hide();
+
+    expect(window.visible, isFalse);
+    expect(window.calls, ['hide']);
+
+    final result = await controller.toggle();
+
+    expect(result, OverlayVisibilityChange.shown);
+    expect(window.visible, isTrue);
+    expect(window.focused, isTrue);
+    expect(window.calls, [
+      'hide',
+      'isMinimized',
+      'isVisible',
+      'show',
+      'isMinimized',
+      'focus',
+    ]);
+  });
+
   test('shows and focuses a hidden window', () async {
     final window = FakeOverlayWindow(visible: false);
     final controller = OverlayWindowController(window: window, delay: noDelay);

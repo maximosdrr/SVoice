@@ -69,6 +69,17 @@ class OverlayWindowController {
 
   void notifyRestored() => _minimizeRequested = false;
 
+  Future<void> hide() async {
+    if (_transitioning) return;
+    _transitioning = true;
+    try {
+      _minimizeRequested = false;
+      await _window.hide();
+    } finally {
+      _transitioning = false;
+    }
+  }
+
   Future<void> minimize() async {
     _minimizeRequested = true;
     try {
