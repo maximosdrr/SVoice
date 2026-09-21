@@ -5,7 +5,7 @@ Registers the Debug build of the widget for development (loose files).
 .DESCRIPTION
 The bridge inside the registered package locates the XTTS service in this
 repository (service\svoice_xtts_service.py) and uses the development virtual
-environment (python_service\.build-venv) or the SVOICE_XTTS_PYTHON override.
+environment (service\.venv) or the SVOICE_XTTS_PYTHON override.
 Widget settings are preserved when re-registering the same version.
 #>
 [CmdletBinding()]

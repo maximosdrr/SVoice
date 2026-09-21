@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import time
 import urllib.error
 import urllib.request
@@ -156,6 +157,65 @@ def check_model(models_dir: Path, *, full_hash: bool = False) -> ModelStatus:
 
 
 ProgressCallback = Callable[[str, int, int], None]
+
+
+def copy_verified_model(
+    source_models_dir: Path,
+    destination_models_dir: Path,
+    *,
+    progress: ProgressCallback | None = None,
+    cancel: Callable[[], bool] | None = None,
+) -> ModelStatus | None:
+    """Copy a complete legacy per-user model into the shared model store.
+
+    Packaged Game Bar processes cannot reliably read large model files from a
+    user's LocalAppData on every Windows configuration.  The installer keeps
+    the immutable XTTS model in ProgramData instead.  Existing installations
+    are migrated by copying only a model that passes full SHA-256 validation;
+    the original remains untouched as a rollback copy.
+    """
+    source = model_directory(source_models_dir)
+    destination = model_directory(destination_models_dir)
+    source_status = check_model(source_models_dir, full_hash=True)
+    if not source_status.ready:
+        return None
+
+    destination.mkdir(parents=True, exist_ok=True)
+    total = TOTAL_MODEL_BYTES
+    copied = 0
+    for file in MODEL_FILES:
+        if cancel and cancel():
+            raise CancelledError()
+        source_file = source / file.name
+        destination_file = destination / file.name
+        temporary_file = destination_file.with_suffix(destination_file.suffix + ".migrating")
+        temporary_file.unlink(missing_ok=True)
+        try:
+            with source_file.open("rb") as input_stream, temporary_file.open("wb") as output_stream:
+                while True:
+                    if cancel and cancel():
+                        raise CancelledError()
+                    chunk = input_stream.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    output_stream.write(chunk)
+                    copied += len(chunk)
+                    if progress:
+                        progress(f"Migrando {file.name}", copied, total)
+            shutil.copystat(source_file, temporary_file)
+            os.replace(temporary_file, destination_file)
+        finally:
+            temporary_file.unlink(missing_ok=True)
+
+    status = check_model(destination_models_dir, full_hash=True)
+    if not status.ready:
+        raise ServiceError(
+            "O modelo XTTS v2 migrado não passou na verificação de integridade.",
+            500,
+            code="model_migration_failed",
+            action="Execute o reparo do SVoice.",
+        )
+    return status
 
 
 def ensure_model(

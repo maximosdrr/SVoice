@@ -3,7 +3,7 @@
 
 #define MyAppName "SVoice"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.2"
+  #define MyAppVersion "2.0.3"
 #endif
 #define MyAppPublisher "SVoice"
 #ifndef StagingDir
@@ -47,7 +47,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 
 [Tasks]
 Name: "installvbcable"; Description: "Instalar ou reparar o microfone virtual VB-CABLE (VB-Audio, donationware)"; GroupDescription: "Microfone virtual:"; Flags: checkedonce
-Name: "downloadmodel"; Description: "Baixar o modelo XTTS v2 (1,9 GB) agora, se ainda não estiver instalado"; GroupDescription: "Modelo de voz:"; Flags: checkedonce
+Name: "downloadmodel"; Description: "Baixar o modelo XTTS v2 (1,9 GB) agora, se ainda não estiver instalado"; GroupDescription: "Modelo de voz:"
 
 [Files]
 Source: "{#StagingDir}\SVoice.Setup.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -66,6 +66,11 @@ Source: "{src}\xtts_v2\*"; DestDir: "{commonappdata}\SVoice\models\tts\tts_model
 ; An update must not leave an older MSIX beside the current package. FindFirst
 ; order is not a version order and could otherwise select the stale package.
 Type: files; Name: "{app}\widget\*.msix"
+
+[UninstallDelete]
+; Runtime packs are extracted by SVoice.Setup after [Files] is processed, so
+; Inno does not track their individual files in the uninstall log.
+Type: filesandordirs; Name: "{app}\runtime"
 
 [Dirs]
 Name: "{commonappdata}\SVoice"; Permissions: users-modify
@@ -432,25 +437,18 @@ begin
 
   App := ExpandConstant('{app}');
 
-  // 1. Certificate + widget (the MSIX registers per user, so it runs as the original user).
+  // 1. Trust the widget certificate now, but register the MSIX only after the
+  // runtime/model tests. An open Game Bar otherwise starts XTTS midway through
+  // installation and races the validation helper.
   Msix := App + '\widget\SVoice.GameBar_{#MyAppVersion}.0_x64.msix';
-  if Msix = '' then
+  if not FileExists(Msix) then
     RecordFailure('Widget', 'pacote MSIX não encontrado')
-  else
+  else if FileExists(App + '\widget\SVoice.GameBar.cer') then
   begin
-    if FileExists(App + '\widget\SVoice.GameBar.cer') then
-    begin
-      Code := RunHelper('install-cert --cer "' + App + '\widget\SVoice.GameBar.cer"', False,
-        'Certificado do widget', 'Confiando no certificado de assinatura do SVoice…', 120, Msg);
-      if Code <> 0 then
-        RecordFailure('Certificado', Msg);
-      Args := 'install-msix --msix "' + Msix + '" --cer "' + App + '\widget\SVoice.GameBar.cer"';
-    end
-    else
-      Args := 'install-msix --msix "' + Msix + '"';
-    Code := RunHelper(Args, True, 'Widget da Xbox Game Bar', 'Instalando o widget SVoice…', 600, Msg);
+    Code := RunHelper('install-cert --cer "' + App + '\widget\SVoice.GameBar.cer"', False,
+      'Certificado do widget', 'Confiando no certificado de assinatura do SVoice…', 120, Msg);
     if Code <> 0 then
-      RecordFailure('Widget', Msg);
+      RecordFailure('Certificado', Msg);
   end;
 
   // 2. VB-CABLE (driver; elevated).
@@ -471,9 +469,8 @@ begin
   if Code <> 0 then
     RecordFailure('Runtime', Msg);
 
-  // A Game Bar aberta can launch the service as soon as the MSIX is updated,
-  // while runtime packs are still being extracted. Stop that early instance so
-  // model/backend validation always starts with the complete installed runtime.
+  // An older widget may still be open during an update. Stop its service so
+  // model/backend validation starts with the complete installed runtime.
   if StepFailures.Count = 0 then
   begin
     Code := RunHelper('stop-service', True, 'Serviço XTTS', 'Preparando o serviço XTTS instalado…', 120, Msg);
@@ -485,13 +482,22 @@ begin
   if SelectedMode() <> 'auto' then
     Log('Compute mode override: ' + SelectedMode());
 
-  // 5. Model (runs as the user and reuses a complete model from an earlier SVoice installation).
+  // 5. Model (shared with the full-trust Game Bar process; legacy per-user models are migrated).
   if WizardIsTaskSelected('downloadmodel') and (StepFailures.Count = 0) then
   begin
-    Code := RunHelper('ensure-model --service-dir "' + App + '\service" --runtime-dir "' + App + '\runtime" --target auto', True,
+    Code := RunHelper('ensure-model --service-dir "' + App + '\service" --runtime-dir "' + App + '\runtime" --target shared', True,
       'Modelo XTTS v2', 'Verificando ou baixando o modelo XTTS v2 (1,9 GB, licença Coqui CPML — uso não comercial)…', 4 * 3600, Msg);
     if Code <> 0 then
       RecordFailure('Modelo XTTS v2', Msg);
+  end
+  else if StepFailures.Count = 0 then
+  begin
+    // Even when downloads are disabled, promote a complete model left by an
+    // older SVoice release so the packaged Game Bar process can read it.
+    Code := RunHelper('ensure-model --service-dir "' + App + '\service" --runtime-dir "' + App + '\runtime" --target shared --no-download', True,
+      'Modelo XTTS v2', 'Procurando um modelo XTTS existente para reutilizar…', 1800, Msg);
+    if Code <> 0 then
+      Log('Nenhum modelo existente foi migrado; o download continua opcional. ' + Msg);
   end;
 
   // 6. Backend validation (full synthesis on the selected backend, CPU fallback).
@@ -507,7 +513,21 @@ begin
       RecordFailure('Teste de síntese', Msg);
   end;
 
-  // 7. Final verification.
+  // 7. Register/update the widget only after XTTS is ready. The MSIX update
+  // closes an older widget process and its next activation sees a complete
+  // runtime plus the shared model.
+  if FileExists(Msix) then
+  begin
+    if FileExists(App + '\widget\SVoice.GameBar.cer') then
+      Args := 'install-msix --msix "' + Msix + '" --cer "' + App + '\widget\SVoice.GameBar.cer"'
+    else
+      Args := 'install-msix --msix "' + Msix + '"';
+    Code := RunHelper(Args, True, 'Widget da Xbox Game Bar', 'Instalando o widget SVoice…', 600, Msg);
+    if Code <> 0 then
+      RecordFailure('Widget', Msg);
+  end;
+
+  // 8. Final verification.
   Args := 'verify --install-dir "' + App + '"';
   if not WizardIsTaskSelected('downloadmodel') then
     Args := Args + ' --model-optional';
@@ -559,23 +579,35 @@ begin
     Exit;
   Helper := ExpandConstant('{app}\SVoice.Setup.exe');
   Exec(Helper, 'stop-service', '', SW_HIDE, ewWaitUntilTerminated, Code);
-  ExecAsOriginalUser(Helper, 'stop-service', '', SW_HIDE, ewWaitUntilTerminated, Code);
 
-  RemoveProfiles := MsgBox('Excluir também os perfis de voz clonados (pasta AppData\Local\SVoice\XTTS\voices)?' + #13#10 +
-    'Escolha Não para preservá-los para uma instalação futura.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
-  RemoveModels := MsgBox('Excluir também o modelo XTTS v2 baixado (cerca de 1,9 GB)?' + #13#10 +
-    'Escolha Não para evitar um novo download em uma instalação futura.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+  if UninstallSilent then
+  begin
+    // Automation, enterprise removal and upgrades must be non-destructive by
+    // default. Data deletion always requires the interactive confirmation.
+    RemoveProfiles := False;
+    RemoveModels := False;
+  end
+  else
+  begin
+    RemoveProfiles := MsgBox('Excluir também os perfis de voz clonados (pasta AppData\Local\SVoice\XTTS\voices)?' + #13#10 +
+      'Escolha Não para preservá-los para uma instalação futura.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+    RemoveModels := MsgBox('Excluir também o modelo XTTS v2 baixado (cerca de 1,9 GB)?' + #13#10 +
+      'Escolha Não para evitar um novo download em uma instalação futura.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+  end;
 
   Args := 'uninstall-data';
   if RemoveProfiles then
     Args := Args + ' --profiles';
   if RemoveModels then
     Args := Args + ' --models';
-  ExecAsOriginalUser(Helper, Args, '', SW_HIDE, ewWaitUntilTerminated, Code);
+  // Inno Setup does not allow ExecAsOriginalUser during uninstall. The
+  // elevated process still belongs to the same Windows account, so the helper
+  // resolves the same LocalAppData and can safely preserve/remove its data.
+  Exec(Helper, Args, '', SW_HIDE, ewWaitUntilTerminated, Code);
   if RemoveModels then
     Exec(Helper, 'uninstall-data --models', '', SW_HIDE, ewWaitUntilTerminated, Code);
 
-  ExecAsOriginalUser(Helper, 'remove-msix', '', SW_HIDE, ewWaitUntilTerminated, Code);
+  Exec(Helper, 'remove-msix', '', SW_HIDE, ewWaitUntilTerminated, Code);
   MsgBox('O VB-CABLE (VB-Audio Software) é um driver compartilhado e permanece instalado. ' +
     'Para removê-lo, use "VBCABLE_Setup_x64.exe -u" ou Aplicativos instalados do Windows.', mbInformation, MB_OK);
 end;

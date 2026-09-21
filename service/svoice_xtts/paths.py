@@ -3,7 +3,8 @@ r"""Persistent directories used by the service.
 All user data lives outside the MSIX package so that reinstalling or updating
 the widget never touches voices, models or settings:
 
-    %LOCALAPPDATA%\SVoice\XTTS        models, voices, temp, config, discovery
+    %LOCALAPPDATA%\SVoice\XTTS        voices, legacy models, temp, config, discovery
+    %ProgramData%\SVoice\models       canonical model store used by Game Bar
     %LOCALAPPDATA%\SVoice\Logs        rotating logs
     %LOCALAPPDATA%\SVoice\Downloads   download cache (runtime packs, model)
 """
@@ -60,7 +61,7 @@ class DataPaths:
         return self.data_dir / "models"
 
     def candidate_models_dirs(self) -> list[Path]:
-        return [self.models_dir, shared_models_dir()]
+        return [shared_models_dir(), self.models_dir]
 
     def resolved_models_dir(self) -> Path:
         """First directory holding a complete model, else the per-user one."""

@@ -53,15 +53,18 @@ Legenda de origem: **F** = aplicativo Flutter (`lib/`), **W** = widget Game Bar
 
 `lib/`, `test/`, `windows/`, `packages/flutter_tts`, `packages/hotkey_manager_windows`,
 `pubspec.yaml`, `pubspec.lock`, `analysis_options.yaml`, `.metadata`,
-`svoice.iml`, `.flutter-plugins-dependencies`, `.idea/`, `installer/SVoice.iss`
-(versão Flutter), trechos do `README.md`.
+`svoice.iml`, `.flutter-plugins-dependencies`, `.idea/`,
+`installer/SVoice-flutter-legacy.iss.txt` e os trechos legados do `README.md`.
+
+Remoção concluída após os testes reais de instalação limpa, atualização,
+desinstalação com preservação de dados, síntese CUDA e ativação do widget.
 
 ## Dados a migrar
 
 | Dado | Local atual | Ação |
 | --- | --- | --- |
 | Perfis clonados (`profiles.json`, `voices/<id>/reference_*.wav`, `conditioning.pt`) | `%LOCALAPPDATA%\SVoice\XTTS` | Mantidos no mesmo local. Migração adiciona `schema_version`, valida referências e faz backup de `profiles.json` antes de reescrever. |
-| Modelo XTTS v2 | `%LOCALAPPDATA%\SVoice\XTTS\models\tts\...` | Mantido; verificado por SHA-256; recompletado se faltar arquivo. |
+| Modelo XTTS v2 | `%ProgramData%\SVoice\models\tts\...` | Compartilhado com o processo da Game Bar; verificado por SHA-256; instalações antigas em `%LOCALAPPDATA%` são migradas sem apagar a cópia original. |
 | `config.json` (`compute_mode`: `auto`/`gpu`/`cpu`) | `%LOCALAPPDATA%\SVoice\XTTS` | `gpu` → `cuda`; demais mantidos; chaves desconhecidas preservadas. |
 | Preferências do Flutter (`shared_preferences`) | Perfil do usuário | Não migradas (voz/eco/volume são reconfigurados no widget; não são dados do usuário). |
 | Preferências do widget (`LocalSettings`) | Pacote MSIX | Mantidas entre atualizações do MSIX. |

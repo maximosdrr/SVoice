@@ -69,7 +69,7 @@ real (`MODELO AUSENTE`, `XTTS INDISPONÍVEL`) e a ação sugerida.
 | Conteúdo | Local |
 | --- | --- |
 | Perfis clonados, configuração, logs do serviço | `%LOCALAPPDATA%\SVoice\XTTS` e `%LOCALAPPDATA%\SVoice\Logs` |
-| Modelo XTTS v2 | `%ProgramData%\SVoice\models` (compartilhado) ou `%LOCALAPPDATA%\SVoice\XTTS\models` |
+| Modelo XTTS v2 | `%ProgramData%\SVoice\models` (local canônico); modelos antigos em `%LOCALAPPDATA%\SVoice\XTTS\models` são reutilizados e migrados |
 | Runtime (Python embutido, PyTorch), serviço, VB-CABLE, licenças | `C:\Program Files\SVoice` |
 | Preferências e histórico do widget | Dados do aplicativo do pacote `SVoice.GameBar` |
 
@@ -96,6 +96,8 @@ desinstalador pergunta separadamente se deseja excluir os **perfis de voz** e o
 compartilhado e permanece instalado; para removê-lo use
 `C:\Program Files\SVoice\vendor\VBCABLE\VBCABLE_Setup_x64.exe -u` antes de
 desinstalar o SVoice, ou a opção correspondente em *Aplicativos instalados*.
+Desinstalações silenciosas preservam perfis e modelo obrigatoriamente; a
+exclusão desses dados só ocorre após confirmação explícita no modo interativo.
 
 ## Instalação sem internet
 

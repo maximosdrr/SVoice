@@ -24,7 +24,7 @@ Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
 ## Instalação
 
-Execute `SVoice-Setup-2.0.2.exe` como administrador, mantenha marcadas as
+Execute `SVoice-Setup-2.0.3.exe` como administrador, mantenha marcadas as
 opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
 driver for instalado pela primeira vez, reinicie o Windows.
 
@@ -71,12 +71,12 @@ python -m pytest .\service\tests -q
 O aceite de um backend de GPU exige também o teste integrado de carga do
 modelo, síntese curta e longa, chamadas consecutivas, cancelamento e fallback.
 
-## Código Flutter legado
+## Histórico da versão desktop
 
-O instalador e o widget 2.0 já não usam Flutter. O código Flutter permanece
-temporariamente no histórico de trabalho apenas até o gate final de paridade,
-instalação, atualização e desinstalação. Depois desse aceite ele será removido
-do branch principal, permanecendo recuperável pela tag `svoice-pre-standalone`.
+O aplicativo Flutter legado foi removido depois da aprovação dos gates de
+paridade, instalação, atualização e desinstalação. Ele continua recuperável na
+tag Git `svoice-pre-standalone`; a versão atual é exclusivamente Xbox Game Bar
++ serviço XTTS standalone.
 
 ## VB-CABLE
 

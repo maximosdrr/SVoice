@@ -45,12 +45,13 @@ Para gerar o pacote Release assinado e o instalador local:
 
 ```powershell
 .\gamebar\build-widget-package.ps1
+.\installer\build-installer.ps1 -SkipWidgetBuild -SkipRuntimeBuild
 ```
 
-Os arquivos prontos ficam em `artifacts\gamebar`. Execute
-`Install-SVoice-GameBar.ps1` nessa pasta e aceite a elevação do Windows. O
-script confia somente no certificado local do SVoice, instala o MSIX e valida
-a extensão automaticamente.
+O MSIX isolado fica em `artifacts\gamebar` para diagnóstico e desenvolvimento,
+mas não contém o serviço nem os runtimes XTTS. Para uso real, execute o
+`SVoice-Setup-<versão>.exe` criado em `artifacts`: ele confia no certificado
+local do SVoice, instala o MSIX, o XTTS e o VB-CABLE e valida uma síntese.
 
 ## Compilar pelo Visual Studio
 

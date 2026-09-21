@@ -13,7 +13,7 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ penden
 | --- | --- | --- |
 | Testes do serviço (registro, migração, recuperação de backup, validação de áudio, jobs, chunking, seleção de runtime, modelo, config) | `python -m unittest discover -s service/tests` | ✅ 40 testes OK (2026-09-21) |
 | Compilação do bridge | `dotnet build gamebar/SVoice.GameBarBridge` | ✅ |
-| Compilação do widget Debug e Release + MSIX | `.\gamebar\build-widget.ps1 -Configuration Debug/Release` | ✅ (`SVoice.GameBar_2.0.2.0_x64.msix`) |
+| Compilação do widget Debug e Release + MSIX | `.\gamebar\build-widget.ps1 -Configuration Debug/Release` | ✅ (`SVoice.GameBar_2.0.3.0_x64.msix`) |
 | Compilação do helper | `dotnet build installer/SVoice.Setup` | ✅ |
 | Sintaxe dos scripts PowerShell | `[Parser]::ParseFile` | ✅ |
 | Autoteste do runtime empacotado (Python embutido) por pack | `python.exe svoice_xtts_service.py --self-test --torch-pack …` | ✅ torch-cpu, torch-cuda, torch-directml |
@@ -53,11 +53,11 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ penden
 | `test-service` (validação CUDA pelo runtime instalado) | ✅ `install-diagnostics.json` 18:52: curta 4,8 s |
 | Primeira instalação real do `SVoice-Setup-2.0.1.exe` nesta máquina (substituindo o SVoice Flutter 1.4.7) | ✅ `Program Files\SVoice` com runtime `torch-cuda`, widget 2.0.1.0 registrado, "Verification (post-install): ok" |
 
-## Pendentes (executar com o instalador 2.0.2)
+## Pendentes (executar com o instalador 2.0.3)
 
 | Cenário | Estado |
 | --- | --- |
-| Atualização 2.0.1 → 2.0.2 sem perda de perfis/modelo | ⏳ |
+| Atualização 2.0.2 → 2.0.3 com migração do modelo para ProgramData, sem perda de perfis | ⏳ |
 | Uso real na Game Bar: abrir, clonar, sintetizar, cancelar, histórico, Eco | ⏳ |
 | Reparo (`Reparar SVoice`) | ⏳ |
 | Desinstalação preservando dados / removendo dados | ⏳ |

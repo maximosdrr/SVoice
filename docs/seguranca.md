@@ -15,8 +15,8 @@
 | Hash de downloads | Modelo XTTS v2 (5 arquivos) e packs de runtime verificados por SHA-256 pinado; downloads retomáveis com `.part`, descartados em caso de divergência. |
 | Falta de espaço | `ensure_model` e `install-runtime` verificam espaço livre antes de escrever; o instalador exige 12 GB. |
 | Modelo incompleto | `check_model` compara tamanho e SHA-256 (cache de verificação por fingerprint); arquivos ausentes/corrompidos são baixados novamente. |
-| Atualização sem perda | MSIX atualizado no lugar (`ForceUpdateFromAnyVersion`, dados do app preservados); dados do usuário ficam fora de `Program Files`; packs só são substituídos quando o hash muda; migração do registro cria backup. Leituras transitórias de `profiles.json` são repetidas e nunca viram um registro vazio; quando há áudios órfãos, um backup válido correspondente é recuperado automaticamente. |
-| Instância única e recuperação | Mutex `Local\SVoice.XttsService`; bridge adota instância existente pelo arquivo de descoberta e relança em caso de queda; widget oferece **RECONECTAR**. |
+| Atualização/desinstalação sem perda | MSIX atualizado no lugar (`ForceUpdateFromAnyVersion`, dados do app preservados); dados do usuário ficam fora de `Program Files`; packs só são substituídos quando o hash muda. A desinstalação silenciosa sempre preserva perfis e modelo; exclusão exige confirmação interativa. Migração do registro cria backup. Leituras transitórias de `profiles.json` são repetidas e nunca viram um registro vazio; quando há áudios órfãos, um backup válido correspondente é recuperado automaticamente. |
+| Instância única e recuperação | Mutex `Local\SVoice.XttsService`; se widget e instalador iniciarem juntos, a segunda instância aguarda a publicação atômica de `service.json` e devolve o endpoint autenticado para adoção. O bridge também aguarda e adota a instância existente, relança em caso de queda; o widget oferece **RECONECTAR**. |
 
 Limite de confiança: qualquer processo executado pela mesma conta do usuário
 pode ler `service.json` e usar o serviço — o mesmo limite do próprio perfil do

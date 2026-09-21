@@ -90,7 +90,7 @@ internal static class ServiceLocator
             return overridePython;
         }
 
-        var venv = Path.Combine(root, "python_service", ".build-venv", "Scripts", "python.exe");
+        var venv = Path.Combine(root, "service", ".venv", "Scripts", "python.exe");
         return File.Exists(venv) ? venv : null;
     }
 

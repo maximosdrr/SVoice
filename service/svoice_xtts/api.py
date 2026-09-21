@@ -183,6 +183,16 @@ class ServiceApp:
 
             if target == "shared":
                 models_dir = shared_models_dir()
+                shared_status = model_files.check_model(models_dir)
+                if not shared_status.ready:
+                    migrated = model_files.copy_verified_model(
+                        self.paths.models_dir,
+                        models_dir,
+                        progress=progress,
+                        cancel=job.cancel_requested,
+                    )
+                    if migrated is not None:
+                        return migrated.to_json()
             elif target == "user":
                 models_dir = self.paths.models_dir
             else:

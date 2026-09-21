@@ -281,6 +281,28 @@ class ModelCheckTests(unittest.TestCase):
                 model.ensure_model(self.models)
             self.assertEqual(captured.exception.code, "model_corrupted")
 
+    def test_copies_verified_legacy_model_to_shared_store(self) -> None:
+        files = self._fake_files()
+        destination = self.models / "shared"
+        with patch.object(model, "MODEL_FILES", tuple(files)), patch.object(
+            model, "TOTAL_MODEL_BYTES", sum(file.size for file in files)
+        ):
+            status = model.copy_verified_model(self.models, destination)
+        self.assertIsNotNone(status)
+        self.assertTrue(status.ready)
+        for file in files:
+            self.assertEqual(
+                (model.model_directory(destination) / file.name).read_bytes(),
+                (self.directory / file.name).read_bytes(),
+            )
+
+    def test_does_not_copy_an_incomplete_legacy_model(self) -> None:
+        destination = self.models / "shared"
+        with patch.object(model, "MODEL_FILES", (model.ModelFile("model.pth", 3, "0" * 64),)):
+            status = model.copy_verified_model(self.models, destination)
+        self.assertIsNone(status)
+        self.assertFalse(model.model_directory(destination).exists())
+
 
 class ServiceErrorTests(unittest.TestCase):
     def test_json_shape(self) -> None:
