@@ -36,9 +36,9 @@ Depois:
    microfone.
 4. No widget, clone ou selecione uma voz, escreva a frase e pressione `Enter`.
 
-Consulte [instalação e uso](docs/instalacao-e-uso.md),
-[backends](docs/backends.md), [segurança](docs/seguranca.md) e
-[solução de problemas](docs/solucao-de-problemas.md).
+Consulte [entrega e hashes](docs/entrega.md), [instalação e uso](docs/instalacao-e-uso.md),
+[backends](docs/backends.md), [segurança](docs/seguranca.md),
+[solução de problemas](docs/solucao-de-problemas.md), [testes executados](docs/testes.md) e o [changelog](CHANGELOG.md).
 
 ## Compilação
 
