@@ -18,6 +18,10 @@ namespace SVoice.GameBar
         {
             InitializeComponent();
             Suspending += OnSuspending;
+            UnhandledException += (_, eventArgs) =>
+            {
+                Log($"Unhandled exception: {eventArgs.Message} | {eventArgs.Exception}");
+            };
         }
 
         protected override void OnActivated(IActivatedEventArgs args)

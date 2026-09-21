@@ -1,0 +1,12 @@
+# Experimental DirectML (DirectX 12) backend for AMD/Intel GPUs.
+# torch-directml 0.2.5.dev240914 pins torch 2.4.1 / torchvision 0.19.1.
+# torch 2.4.x Windows wheels load MKL/OpenMP DLLs from Library\bin.
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+torch==2.4.1+cpu
+torchaudio==2.4.1+cpu
+torchvision==0.19.1+cpu
+torch-directml==0.2.5.dev240914
+mkl==2021.4.0
+intel-openmp==2021.4.0
+tbb==2021.13.1

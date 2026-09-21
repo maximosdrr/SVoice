@@ -1,0 +1,5 @@
+# CPU build (extracted from the base staging install; listed for reference).
+--index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0+cpu
+torchaudio==2.11.0+cpu
+torchcodec==0.16.0+cpu

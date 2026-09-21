@@ -1,0 +1,10 @@
+# Base runtime pack: coqui-tts and every dependency except PyTorch.
+# torch/torchaudio are installed during staging and moved to the torch-cpu pack.
+coqui-tts==0.27.5
+transformers>=4.57,<5
+mutagen==1.47.0
+imageio-ffmpeg==0.6.0
+soundfile>=0.13
+torch==2.14.0
+torchaudio==2.11.0
+torchcodec==0.16.0

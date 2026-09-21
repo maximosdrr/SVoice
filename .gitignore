@@ -64,3 +64,7 @@ app.*.map.json
 /python_service/dist/
 /python_service/*.spec
 /python_service/**/__pycache__/
+
+# Standalone XTTS service runtime build outputs
+/service/runtime/.build/
+/service/**/__pycache__/
