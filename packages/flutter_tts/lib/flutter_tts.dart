@@ -386,11 +386,12 @@ class FlutterTts {
     String text,
     String fileName, [
     bool isFullPath = false,
-  ]) async => _channel.invokeMethod('synthesizeToFile', <String, dynamic>{
-    "text": text,
-    "fileName": fileName,
-    "isFullPath": isFullPath,
-  });
+  ]) async =>
+      _channel.invokeMethod('synthesizeToFile', <String, dynamic>{
+        "text": text,
+        "fileName": fileName,
+        "isFullPath": isFullPath,
+      });
 
   /// [Future] which invokes the platform specific method for setLanguage
   Future<dynamic> setLanguage(String language) async =>
@@ -464,9 +465,8 @@ class FlutterTts {
         'setIosAudioCategory',
         <String, dynamic>{
           iosAudioCategoryKey: categoryToString[category],
-          iosAudioCategoryOptionsKey: options
-              .map((o) => optionsToString[o])
-              .toList(),
+          iosAudioCategoryOptionsKey:
+              options.map((o) => optionsToString[o]).toList(),
           iosAudioModeKey: modeToString[mode],
         },
       );
@@ -552,6 +552,11 @@ class FlutterTts {
   /// An empty id restores the Windows default output.
   Future<dynamic> setAudioDevice(String id) async =>
       await _channel.invokeMethod('setAudioDevice', id);
+
+  /// Mirrors Windows playback to the system default output while keeping the
+  /// selected render device as the primary destination.
+  Future<dynamic> setEchoEnabled(bool enabled) async =>
+      await _channel.invokeMethod('setEchoEnabled', enabled);
 
   /// [Future] which invokes the platform specific method for isLanguageAvailable
   /// Returns `true` or `false`

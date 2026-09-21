@@ -10,6 +10,8 @@ fica sempre no topo, pode ser recolhida e tem transparência ajustável.
 - processamento automático por GPU, com fallback para CPU, ou seleção manual
   de GPU/CPU;
 - seleção de voz, volume, velocidade e tom;
+- modo Eco para ouvir na saída padrão do Windows a mesma fala enviada ao
+  microfone virtual;
 - histórico curto com repetição por clique;
 - `Enter` para falar e `Esc` para interromper;
 - atalho global configurável para ocultar ou trazer a janela (inicialmente
@@ -52,6 +54,12 @@ virtual — nenhum cabo ou equipamento físico é necessário.
    como dispositivo de entrada.
 5. Se o começo ou o fim das frases for cortado, desative a supressão de ruído
    e ajuste manualmente a sensibilidade de entrada do Discord.
+
+Nas configurações do SVoice, ative **Modo Eco** para ouvir simultaneamente na
+saída padrão do Windows a fala que está sendo enviada ao `CABLE Input`. O Eco
+só fica ativo enquanto o microfone virtual estiver selecionado, evitando
+duplicação quando o aplicativo já estiver reproduzindo diretamente nos
+alto-falantes ou fones.
 
 O botão **Conectar ao Discord** dentro do app mostra essas instruções e abre o
 Mixer de volume do Windows.

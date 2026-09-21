@@ -175,7 +175,9 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
       PanelMode.settings => const Size(560, 610),
       PanelMode.discordGuide => const Size(560, 540),
     };
-    await windowManager.setSize(size, animate: true);
+    if (widget.enableDesktopFeatures) {
+      await windowManager.setSize(size, animate: true);
+    }
     if (mode == PanelMode.compact || mode == PanelMode.chat) {
       _messageFocus.requestFocus();
     }
@@ -871,6 +873,16 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
           _sectionTitle('SAÍDA DE ÁUDIO'),
           const SizedBox(height: 8),
           _audioDeviceDropdown(),
+          const SizedBox(height: 4),
+          _settingSwitch(
+            title: 'Modo Eco',
+            subtitle: controller.isUsingVirtualCable
+                ? 'Ouvir também na saída padrão do Windows.'
+                : 'Selecione o CABLE Input para monitorar a voz.',
+            value: controller.isEchoActive,
+            onChanged: controller.updateEchoEnabled,
+            enabled: controller.isUsingVirtualCable,
+          ),
           const SizedBox(height: 7),
           Row(
             children: [
@@ -924,14 +936,18 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text(
-                'Ocultar e mostrar de qualquer lugar',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: .34),
-                  fontSize: 10.5,
+              Expanded(
+                child: Text(
+                  'Ocultar e mostrar de qualquer lugar',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: .34),
+                    fontSize: 10.5,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               TextButton(
                 onPressed: () async {
                   await controller.saveSettings();
@@ -1557,26 +1573,47 @@ class _OverlayScreenState extends State<OverlayScreen> with WindowListener {
     required String title,
     required bool value,
     required ValueChanged<bool> onChanged,
+    String? subtitle,
+    bool enabled = true,
   }) {
     return SizedBox(
-      height: 42,
+      height: subtitle == null ? 42 : 52,
       child: Row(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: .62),
-              fontSize: 11.5,
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: enabled ? .62 : .3),
+                    fontSize: 11.5,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: enabled ? .32 : .2),
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          const Spacer(),
           Transform.scale(
             scale: .75,
             child: Switch(
               value: value,
               activeTrackColor: accent.withValues(alpha: .5),
               activeThumbColor: accent,
-              onChanged: onChanged,
+              onChanged: enabled ? onChanged : null,
             ),
           ),
         ],

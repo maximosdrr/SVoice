@@ -87,6 +87,7 @@ class SVoiceController extends ChangeNotifier {
   double pitch = 1;
   double panelOpacity = .72;
   bool clearAfterSpeaking = true;
+  bool echoEnabled = false;
   String? errorMessage;
   String? cloningError;
   String? cloningStatusMessage;
@@ -99,6 +100,7 @@ class SVoiceController extends ChangeNotifier {
   bool get hasVirtualCable =>
       audioDevices.any((device) => device.isVirtualCable);
   bool get isUsingVirtualCable => selectedAudioDevice?.isVirtualCable ?? false;
+  bool get isEchoActive => echoEnabled && isUsingVirtualCable;
 
   String get cloningSummary {
     if (!cloningAvailable) {
@@ -129,6 +131,7 @@ class SVoiceController extends ChangeNotifier {
     pitch = _preferences?.getDouble('pitch') ?? 1;
     panelOpacity = _preferences?.getDouble('panelOpacity') ?? .72;
     clearAfterSpeaking = _preferences?.getBool('clearAfterSpeaking') ?? true;
+    echoEnabled = _preferences?.getBool('echoEnabled') ?? false;
     cloningComputeMode = XtssComputeMode.fromWireName(
       _preferences?.getString('xttsComputeMode'),
     );
@@ -225,6 +228,7 @@ class SVoiceController extends ChangeNotifier {
     selectedAudioDevice =
         _findAudioDevice(storedId) ?? _firstVirtualCable() ?? systemDefault;
     await _tts.setAudioDevice(selectedAudioDevice!.id);
+    await _syncEchoOutput();
   }
 
   AudioDeviceOption? _findAudioDevice(String? id) {
@@ -493,6 +497,7 @@ class SVoiceController extends ChangeNotifier {
     if (device == null) return;
     selectedAudioDevice = device;
     await _tts.setAudioDevice(device.id);
+    await _syncEchoOutput();
     await _preferences?.setString('audioDeviceId', device.id);
     _notify();
   }
@@ -524,6 +529,17 @@ class SVoiceController extends ChangeNotifier {
     clearAfterSpeaking = value;
     _preferences?.setBool('clearAfterSpeaking', value);
     _notify();
+  }
+
+  Future<void> updateEchoEnabled(bool value) async {
+    echoEnabled = value;
+    await _syncEchoOutput();
+    await _preferences?.setBool('echoEnabled', value);
+    _notify();
+  }
+
+  Future<void> _syncEchoOutput() async {
+    await _tts.setEchoEnabled(isEchoActive);
   }
 
   Future<void> saveSettings() async {

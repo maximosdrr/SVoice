@@ -20,6 +20,7 @@ std::unique_ptr<flutter::MethodChannel<>> methodChannel;
 #include <winrt/Windows.Media.Playback.h>
 #include <winrt/Windows.Media.Core.h>
 #include <winrt/Windows.Storage.h>
+#include <winrt/Windows.Storage.Streams.h>
 #include <winrt/Windows.Devices.Enumeration.h>
 #include <winrt/Windows.Media.Devices.h>
 using namespace winrt;
@@ -52,6 +53,7 @@ namespace {
 		void getLanguages(flutter::EncodableList&);
 		winrt::fire_and_forget getAudioDevices(FlutterResult);
 		winrt::fire_and_forget setAudioDevice(const std::string, FlutterResult);
+		void setEchoEnabled(const bool);
 		void setLanguage(const std::string, FlutterResult&);
 		void addMplayer();
 		winrt::Windows::Foundation::IAsyncAction asyncSpeak(const std::string);
@@ -59,9 +61,12 @@ namespace {
 		bool paused();
 		SpeechSynthesizer synth;
 		winrt::Windows::Media::Playback::MediaPlayer mPlayer;
+		winrt::Windows::Media::Playback::MediaPlayer echoPlayer;
 		winrt::Windows::Devices::Enumeration::DeviceInformation selectedAudioDevice{ nullptr };
 		bool isPaused;
 		bool isSpeaking;
+		bool echoEnabled;
+		double playbackVolume;
 		bool awaitSpeakCompletion;
 		FlutterResult speakResult;
 	};
@@ -83,7 +88,10 @@ namespace {
 
 	void FlutterTtsPlugin::addMplayer() {
 		mPlayer = winrt::Windows::Media::Playback::MediaPlayer::MediaPlayer();
+		echoPlayer = winrt::Windows::Media::Playback::MediaPlayer::MediaPlayer();
 		if (selectedAudioDevice) mPlayer.AudioDevice(selectedAudioDevice);
+		mPlayer.Volume(playbackVolume);
+		echoPlayer.Volume(playbackVolume);
 		auto mEndedToken =
 			mPlayer.MediaEnded([=](Windows::Media::Playback::MediaPlayer const& sender,
 				Windows::Foundation::IInspectable const& args)
@@ -108,11 +116,19 @@ namespace {
 		SpeechSynthesisStream speechStream{
 		  co_await synth.SynthesizeTextToStreamAsync(to_hstring(text))
 		};
-		winrt::param::hstring cType = L"Audio";
+		winrt::Windows::Storage::Streams::IRandomAccessStream echoStream{ nullptr };
+		if (echoEnabled) echoStream = speechStream.CloneStream();
+		winrt::hstring cType = L"Audio";
 		winrt::Windows::Media::Core::MediaSource source =
 			winrt::Windows::Media::Core::MediaSource::CreateFromStream(speechStream, cType);
 		mPlayer.Source(source);
+		if (echoStream) {
+			winrt::Windows::Media::Core::MediaSource echoSource =
+				winrt::Windows::Media::Core::MediaSource::CreateFromStream(echoStream, cType);
+			echoPlayer.Source(echoSource);
+		}
 		mPlayer.Play();
+		if (echoStream) echoPlayer.Play();
 	}
 
 	void FlutterTtsPlugin::speak(const std::string text, FlutterResult result) {
@@ -131,8 +147,13 @@ namespace {
 				to_hstring(path));
 			auto source = winrt::Windows::Media::Core::MediaSource::CreateFromStorageFile(file);
 			mPlayer.Source(source);
+			if (echoEnabled) {
+				auto echoSource = winrt::Windows::Media::Core::MediaSource::CreateFromStorageFile(file);
+				echoPlayer.Source(echoSource);
+			}
 			isSpeaking = true;
 			mPlayer.Play();
+			if (echoEnabled) echoPlayer.Play();
 			methodChannel->InvokeMethod("speak.onStart", NULL);
 			result->Success(1);
 		}
@@ -144,12 +165,14 @@ namespace {
 
 	void FlutterTtsPlugin::pause() {
 		mPlayer.Pause();
+		if (echoEnabled) echoPlayer.Pause();
 		isPaused = true;
 		methodChannel->InvokeMethod("speak.onPause", NULL);
 	}
 
 	void FlutterTtsPlugin::continuePlay() {
 		mPlayer.Play();
+		if (echoEnabled) echoPlayer.Play();
 		isPaused = false;
 		methodChannel->InvokeMethod("speak.onContinue", NULL);
 	}
@@ -161,13 +184,16 @@ namespace {
         }
 
 		mPlayer.Close();
+		echoPlayer.Close();
 		addMplayer();
 		isSpeaking = false;
 		isPaused = false;
 	}
 	void FlutterTtsPlugin::setVolume(const double newVolume) {
+		playbackVolume = newVolume;
 		synth.Options().AudioVolume(newVolume);
 		mPlayer.Volume(newVolume);
+		echoPlayer.Volume(newVolume);
 	}
 
 	void FlutterTtsPlugin::setPitch(const double newPitch) { synth.Options().AudioPitch(newPitch); }
@@ -266,6 +292,10 @@ namespace {
 			result->Error("audio_device_error", to_string(error.message()));
 		}
 	}
+	void FlutterTtsPlugin::setEchoEnabled(const bool enabled) {
+		echoEnabled = enabled;
+		if (!echoEnabled) echoPlayer.Pause();
+	}
 	void FlutterTtsPlugin::setLanguage(const std::string voiceLanguage, FlutterResult& result) {
 		bool found = false;
 		auto voices = synth.AllVoices();
@@ -283,6 +313,8 @@ namespace {
 
 	FlutterTtsPlugin::FlutterTtsPlugin() {
 		synth = SpeechSynthesizer();
+		echoEnabled = false;
+		playbackVolume = 1.0;
 		addMplayer();
 		isPaused = false;
 		isSpeaking = false;
@@ -290,7 +322,10 @@ namespace {
 		speakResult = FlutterResult();
 	}
 
-	FlutterTtsPlugin::~FlutterTtsPlugin() { mPlayer.Close(); }
+	FlutterTtsPlugin::~FlutterTtsPlugin() {
+		mPlayer.Close();
+		echoPlayer.Close();
+	}
 
 	void FlutterTtsPlugin::HandleMethodCall(
 		const flutter::MethodCall<flutter::EncodableValue>& method_call,
@@ -726,6 +761,14 @@ namespace {
 			const flutter::EncodableValue arg = method_call.arguments()[0];
 			if (std::holds_alternative<std::string>(arg)) {
 				setAudioDevice(std::get<std::string>(arg), std::move(result));
+			}
+			else result->Success(0);
+		}
+		else if (method_call.method_name().compare("setEchoEnabled") == 0) {
+			const flutter::EncodableValue arg = method_call.arguments()[0];
+			if (std::holds_alternative<bool>(arg)) {
+				setEchoEnabled(std::get<bool>(arg));
+				result->Success(1);
 			}
 			else result->Success(0);
 		}

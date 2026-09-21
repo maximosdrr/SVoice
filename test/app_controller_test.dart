@@ -1,10 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:svoice/app_controller.dart';
 import 'package:svoice/xtts_service_client.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('voice option exposes a stable id and readable label', () {
     const voice = VoiceOption(
       name: 'Microsoft Francisca',
@@ -54,6 +57,49 @@ void main() {
     expect(profile.sourceCount, 3);
     expect(profile.durationSeconds, 1800);
     expect(profile.wasTruncated, isTrue);
+  });
+
+  test('echo mode mirrors only while the virtual cable is selected', () async {
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('flutter_tts'), (
+          call,
+        ) async {
+          calls.add(call);
+          return 1;
+        });
+    addTearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('flutter_tts'), null);
+    });
+
+    final controller = SVoiceController();
+    controller.selectedAudioDevice = const AudioDeviceOption(
+      id: 'cable-id',
+      name: 'CABLE Input',
+      isVirtualCable: true,
+    );
+
+    await controller.updateEchoEnabled(true);
+
+    expect(controller.echoEnabled, isTrue);
+    expect(controller.isEchoActive, isTrue);
+    expect(
+      calls.where((call) => call.method == 'setEchoEnabled').last.arguments,
+      isTrue,
+    );
+
+    await controller.selectAudioDevice(
+      const AudioDeviceOption(id: '', name: 'Padrão do Windows'),
+    );
+
+    expect(controller.echoEnabled, isTrue);
+    expect(controller.isEchoActive, isFalse);
+    expect(
+      calls.where((call) => call.method == 'setEchoEnabled').last.arguments,
+      isFalse,
+    );
+    await controller.shutdown();
   });
 
   group('voice reference validation', () {
