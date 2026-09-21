@@ -54,7 +54,7 @@ class ServiceApp:
     def health(self) -> dict[str, Any]:
         job = self.jobs.snapshot()
         engine = self.engine.status()
-        model_status = model_files.check_model(self.paths.models_dir)
+        model_status = model_files.check_model(self.paths.resolved_models_dir())
         state = "ready"
         message = "Mecanismo XTTS pronto"
         active = self.jobs.active
@@ -109,7 +109,7 @@ class ServiceApp:
                 check_cancelled=job.check_cancelled,
             )
             precompute = payload.get("precompute", True)
-            if precompute and model_files.check_model(self.paths.models_dir).ready:
+            if precompute and model_files.check_model(self.paths.resolved_models_dir()).ready:
                 try:
                     job.update("Analisando a voz…", 0.75)
                     self.engine.ensure_ready(job)
@@ -147,7 +147,8 @@ class ServiceApp:
             "service_version": SERVICE_VERSION,
             "protocol_version": PROTOCOL_VERSION,
             "system": self.system.to_json(),
-            "model": model_files.check_model(self.paths.models_dir).to_json(),
+            "model": model_files.check_model(self.paths.resolved_models_dir()).to_json(),
+            "model_locations": [str(path) for path in self.paths.candidate_models_dirs()],
             "engine": self.engine.diagnostics(),
             "data_dir": str(self.paths.data_dir),
             "logs_dir": str(self.paths.logs_dir),
@@ -170,13 +171,24 @@ class ServiceApp:
 
     def ensure_model(self, payload: dict[str, Any]) -> dict[str, Any]:
         allow_download = payload.get("download", True) is not False
+        target = str(payload.get("target") or "auto")
+        if target not in {"auto", "user", "shared"}:
+            raise ServiceError("Destino do modelo inválido.", code="invalid_target")
 
         def work(job: Job) -> dict[str, Any]:
             def progress(stage: str, done: int, total: int) -> None:
                 job.update(stage, (done / total) if total else None)
 
+            from .paths import shared_models_dir
+
+            if target == "shared":
+                models_dir = shared_models_dir()
+            elif target == "user":
+                models_dir = self.paths.models_dir
+            else:
+                models_dir = self.paths.resolved_models_dir()
             status = model_files.ensure_model(
-                self.paths.models_dir,
+                models_dir,
                 progress=progress,
                 cancel=job.cancel_requested,
                 allow_download=allow_download,
@@ -341,7 +353,7 @@ class ApiHandler(BaseHTTPRequestHandler):
         elif method == "POST" and path == "/model/ensure":
             self._send_json(HTTPStatus.OK, {"model": app.ensure_model(payload)})
         elif method == "GET" and path == "/model":
-            self._send_json(HTTPStatus.OK, {"model": model_files.check_model(app.paths.models_dir).to_json()})
+            self._send_json(HTTPStatus.OK, {"model": model_files.check_model(app.paths.resolved_models_dir()).to_json()})
         elif method == "POST" and path == "/shutdown":
             self._send_json(HTTPStatus.OK, {"shutting_down": True})
             app.shutdown_requested.set()

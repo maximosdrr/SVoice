@@ -30,7 +30,19 @@ MAX_NAME_LENGTH = 80
 CONDITIONING_FILE = "conditioning.pt"
 
 
+def _registry_payload(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or not isinstance(value.get("profiles"), list):
+        raise ValueError("registro de perfis não é um objeto válido")
+    return value
+
+
 def read_json(path: Path, default: dict[str, Any]) -> dict[str, Any]:
+    """Read a non-critical JSON object such as config.json.
+
+    The profile registry deliberately uses the stricter ``_registry_payload``
+    path so a transient read failure can never erase cloned voices.
+    """
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
         return value if isinstance(value, dict) else default
@@ -60,9 +72,7 @@ class ProfileRegistry:
     def __init__(self, paths: DataPaths):
         self.paths = paths
         self._lock = threading.RLock()
-        self._data = read_json(paths.registry_path, {"profiles": []})
-        if not isinstance(self._data.get("profiles"), list):
-            self._data["profiles"] = []
+        self._data, self._recovered_from = self._load_registry()
         self.migration_report = self._migrate()
 
     # ----------------------------------------------------------------- migration
@@ -74,9 +84,10 @@ class ProfileRegistry:
             "profiles": len(self._data.get("profiles", [])),
             "changed": False,
             "backup": None,
+            "recovered_from": self._recovered_from,
             "invalid_profiles": [],
         }
-        changed = report["schema_before"] != DATA_SCHEMA_VERSION
+        changed = report["schema_before"] != DATA_SCHEMA_VERSION or self._recovered_from is not None
         voices_dir = self.paths.voices_dir
         kept: list[dict[str, Any]] = []
         for raw in self._data.get("profiles", []):
@@ -133,12 +144,88 @@ class ProfileRegistry:
             log.info("Registro de perfis migrado: %s", {k: v for k, v in report.items() if k != "invalid_profiles"})
         return report
 
+    def _load_registry(self) -> tuple[dict[str, Any], str | None]:
+        source = self.paths.registry_path
+        if not source.exists():
+            return {"profiles": []}, None
+
+        last_error: Exception | None = None
+        payload: dict[str, Any] | None = None
+        # Atomic replacement and antivirus scanning can briefly make the file
+        # unreadable. Never turn that transient condition into an empty registry.
+        for attempt in range(6):
+            try:
+                payload = _registry_payload(source)
+                break
+            except (OSError, ValueError) as error:
+                last_error = error
+                if attempt < 5:
+                    time.sleep(0.05 * (attempt + 1))
+
+        if payload is not None and payload["profiles"]:
+            return payload, None
+
+        recovered = self._recover_from_backups()
+        if recovered is not None:
+            recovered_payload, backup = recovered
+            return recovered_payload, str(backup)
+
+        if payload is not None:
+            # A genuinely empty registry is valid when no orphaned voice data
+            # exists. Deleting a profile also deletes its directory, so this
+            # does not resurrect profiles intentionally removed by the user.
+            return payload, None
+
+        raise ServiceError(
+            "O registro de perfis de voz está ilegível e nenhum backup válido pôde ser recuperado.",
+            code="profile_registry_corrupted",
+            action="Preserve profiles.json e use o reparo do SVoice ou restaure um backup da pasta backups.",
+        ) from last_error
+
+    def _recover_from_backups(self) -> tuple[dict[str, Any], Path] | None:
+        try:
+            orphan_ids = {
+                directory.name
+                for directory in self.paths.voices_dir.iterdir()
+                if directory.is_dir() and any(directory.glob("reference_*.wav"))
+            }
+        except OSError:
+            orphan_ids = set()
+        if not orphan_ids:
+            return None
+
+        try:
+            backups = sorted(
+                self.paths.backups_dir.glob("profiles-*.json"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+        except OSError:
+            return None
+
+        for backup in backups:
+            try:
+                candidate = _registry_payload(backup)
+            except (OSError, ValueError):
+                continue
+            matching = [
+                dict(profile)
+                for profile in candidate["profiles"]
+                if isinstance(profile, dict) and profile.get("id") in orphan_ids
+            ]
+            if matching:
+                recovered = dict(candidate)
+                recovered["profiles"] = matching
+                log.warning("Recuperando %d perfil(is) órfão(s) a partir de %s", len(matching), backup)
+                return recovered, backup
+        return None
+
     def _backup_registry(self) -> str | None:
         source = self.paths.registry_path
         if not source.is_file():
             return None
         self.paths.backups_dir.mkdir(parents=True, exist_ok=True)
-        stamp = time.strftime("%Y%m%d-%H%M%S")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         destination = self.paths.backups_dir / f"profiles-{stamp}.json"
         try:
             shutil.copy2(source, destination)

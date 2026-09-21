@@ -262,7 +262,8 @@ class XttsEngine:
         if self.model is not None and self.loaded_backend == backend_id:
             return
         self.unload()
-        status = check_model(self.paths.models_dir)
+        models_dir = self.paths.resolved_models_dir()
+        status = check_model(models_dir)
         if not status.ready:
             raise ServiceError(
                 "O modelo XTTS v2 não está instalado ou está incompleto.",
@@ -277,7 +278,7 @@ class XttsEngine:
         from TTS.tts.configs.xtts_config import XttsConfig
         from TTS.tts.models.xtts import Xtts
 
-        directory = model_directory(self.paths.models_dir)
+        directory = model_directory(models_dir)
         config = XttsConfig()
         config.load_json(str(directory / "config.json"))
         model = Xtts.init_from_config(config)

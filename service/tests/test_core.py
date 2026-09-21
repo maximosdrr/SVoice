@@ -17,7 +17,7 @@ if str(SERVICE_DIRECTORY) not in sys.path:
 
 from svoice_xtts import backends, model, runtime  # noqa: E402
 from svoice_xtts.api import ApiHandler  # noqa: E402
-from svoice_xtts.engine import sanitize_text, split_into_chunks  # noqa: E402
+from svoice_xtts.engine import ConfigStore, sanitize_text, split_into_chunks  # noqa: E402
 from svoice_xtts.errors import CancelledError, ServiceError  # noqa: E402
 from svoice_xtts.hardware import GpuInfo, SystemInfo  # noqa: E402
 from svoice_xtts.jobs import JobTracker  # noqa: E402
@@ -100,6 +100,25 @@ class TextTests(unittest.TestCase):
     def test_chunking_keeps_short_text_whole(self) -> None:
         self.assertEqual(split_into_chunks("Oi! Tudo bem?", 150), ["Oi! Tudo bem?"])
         self.assertEqual(split_into_chunks("   ", 150), [])
+
+
+class ConfigStoreTests(unittest.TestCase):
+    def test_reads_and_persists_compute_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({"compute_mode": "cuda"}), encoding="utf-8")
+            config = ConfigStore(path)
+            self.assertEqual(config.compute_mode, "cuda")
+            config.data["compute_mode"] = "cpu"
+            config.save()
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["compute_mode"], "cpu")
+
+    def test_corrupt_config_uses_safe_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text("{invalid", encoding="utf-8")
+            config = ConfigStore(path)
+            self.assertEqual(config.compute_mode, "auto")
 
 
 class BackendSelectionTests(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""Persistent directories used by the service.
+r"""Persistent directories used by the service.
 
 All user data lives outside the MSIX package so that reinstalling or updating
 the widget never touches voices, models or settings:
@@ -31,6 +31,17 @@ def default_root() -> Path:
     return local_app_data() / "SVoice"
 
 
+def program_data() -> Path:
+    value = os.environ.get("ProgramData")
+    return Path(value) if value else Path("C:/ProgramData")
+
+
+def shared_models_dir() -> Path:
+    """Machine-wide model location filled by the installer (%ProgramData%)."""
+    override = os.environ.get("SVOICE_SHARED_MODELS_DIR")
+    return Path(override) if override else program_data() / "SVoice" / "models"
+
+
 @dataclass(frozen=True)
 class DataPaths:
     data_dir: Path
@@ -45,7 +56,21 @@ class DataPaths:
 
     @property
     def models_dir(self) -> Path:
+        """Per-user model directory (download target by default)."""
         return self.data_dir / "models"
+
+    def candidate_models_dirs(self) -> list[Path]:
+        return [self.models_dir, shared_models_dir()]
+
+    def resolved_models_dir(self) -> Path:
+        """First directory holding a complete model, else the per-user one."""
+        from .model import check_model
+
+        for candidate in self.candidate_models_dirs():
+            status = check_model(candidate)
+            if not status.missing and not status.corrupted:
+                return candidate
+        return self.models_dir
 
     @property
     def backups_dir(self) -> Path:

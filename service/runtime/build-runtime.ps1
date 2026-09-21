@@ -28,6 +28,7 @@ param(
     [string[]]$Packs = @('base', 'torch-cpu', 'torch-cuda', 'torch-directml'),
     [switch]$Clean,
     [switch]$SkipArchive,
+    [switch]$ArchiveOnly,
     [string]$RuntimeVersion = ''
 )
 
@@ -154,6 +155,11 @@ if ($embedMd5 -ne '' -and $actualMd5 -ne $embedMd5) {
     throw "MD5 do Python embutido não confere com o publicado em python.org: esperado $embedMd5, obtido $actualMd5"
 }
 if ($embedSha256 -eq '') { Write-Warning "Python embutido baixado; registre no script: SHA-256 $actualSha / MD5 $actualMd5" }
+if ($ArchiveOnly -and (Test-Path -LiteralPath (Join-Path $pythonDir 'python.exe'))) {
+    Write-Host 'ArchiveOnly: reutilizando o Python embutido e os packs já preparados.'
+    $Packs = @()
+}
+else {
 if (Test-Path -LiteralPath $pythonDir) { Remove-Item -LiteralPath $pythonDir -Recurse -Force }
 New-Item -ItemType Directory -Path $pythonDir | Out-Null
 Expand-Archive -LiteralPath $embedZip -DestinationPath $pythonDir -Force
@@ -177,6 +183,7 @@ foreach ($dir in $crtDirs) {
     Get-ChildItem -LiteralPath $dir.FullName -Filter '*.dll' | Copy-Item -Destination $pythonDir -Force
 }
 Write-PackMetadata -Target $pythonDir -Name 'python' -Version $embedVersion -Backends @() -Extra @{ source = $embedUrl; sha256 = $actualSha }
+}
 
 # ------------------------------------------------------------------------ base + cpu
 $torchDirs = @('torch', 'torchaudio', 'torchgen', 'functorch', 'torch-*.dist-info', 'torchaudio-*.dist-info', 'torchcodec', 'torchcodec-*.dist-info')

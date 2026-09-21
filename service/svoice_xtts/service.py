@@ -100,6 +100,40 @@ def read_discovery(paths: DataPaths) -> dict[str, Any] | None:
         return None
 
 
+def wait_for_discovery(paths: DataPaths, timeout: float) -> dict[str, Any] | None:
+    """Poll the discovery file until it names a live process or ``timeout`` passes."""
+    deadline = time.monotonic() + timeout
+    while True:
+        existing = read_discovery(paths)
+        if existing and _pid_alive(existing.get("pid")):
+            return existing
+        if time.monotonic() >= deadline:
+            return existing
+        time.sleep(0.25)
+
+
+def _pid_alive(pid: Any) -> bool:
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if sys.platform != "win32":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    try:
+        exit_code = ctypes.c_ulong()
+        if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+            return exit_code.value == 259  # STILL_ACTIVE
+        return False
+    finally:
+        kernel32.CloseHandle(handle)
+
+
 def remove_discovery(paths: DataPaths) -> None:
     try:
         current = read_discovery(paths)
@@ -158,10 +192,12 @@ def main(argv: list[str] | None = None, runtime_info: dict[str, Any] | None = No
 
     instance = SingleInstance()
     if not args.no_single_instance and not instance.acquire():
-        existing = read_discovery(paths)
+        # The other instance may still be binding its port; give it time to
+        # publish the discovery file so callers can adopt it instead of failing.
+        existing = wait_for_discovery(paths, timeout=30.0)
         log.warning("Outra instância do serviço já está em execução: %s", existing and existing.get("pid"))
         if args.print_discovery and existing:
-            print(json.dumps({"already_running": True, **{k: v for k, v in existing.items() if k != "token"}}))
+            print(json.dumps({"already_running": True, **existing}), flush=True)
         return EXIT_ALREADY_RUNNING
 
     system = detect_system()

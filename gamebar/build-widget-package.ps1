@@ -1,3 +1,14 @@
+<#
+.SYNOPSIS
+Builds the signed Release MSIX of the SVoice Game Bar widget.
+
+.DESCRIPTION
+Compiles the bridge and the widget in Release, signs the MSIX with the local
+"CN=SVoice Development" certificate (created on first use) and copies the
+package plus the public certificate to artifacts\gamebar. The installer
+(installer\build-installer.ps1) consumes these files; the widget alone does not
+include the XTTS service.
+#>
 [CmdletBinding()]
 param()
 
@@ -6,9 +17,7 @@ $ErrorActionPreference = 'Stop'
 $projectDirectory = Split-Path -Parent $PSScriptRoot
 $outputDirectory = Join-Path $projectDirectory 'artifacts\gamebar'
 $buildScript = Join-Path $PSScriptRoot 'build-widget.ps1'
-$installerScript = Join-Path $PSScriptRoot 'install-widget-package.ps1'
 $manifestPath = Join-Path $PSScriptRoot 'SVoice.GameBar\Package.appxmanifest'
-$bridgeProject = Join-Path $PSScriptRoot 'SVoice.GameBarBridge\SVoice.GameBarBridge.csproj'
 $subject = 'CN=SVoice Development'
 
 [xml]$manifest = Get-Content -Raw -LiteralPath $manifestPath
@@ -18,7 +27,7 @@ $packageVersion = $manifest.Package.Identity.Version
 
 $packageRoot = Join-Path $PSScriptRoot 'SVoice.GameBar\AppPackages'
 $sourcePackage = Get-ChildItem -LiteralPath $packageRoot -Recurse -File -Filter '*.msix' |
-    Where-Object { $_.FullName -notmatch '_Debug_' } |
+    Where-Object { $_.FullName -notmatch '_Debug_' -and $_.Name -match [regex]::Escape($packageVersion) } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 
@@ -27,26 +36,10 @@ if ($null -eq $sourcePackage) {
 }
 
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-$bridgeOutputDirectory = Join-Path $outputDirectory 'bridge'
+Get-ChildItem -LiteralPath $outputDirectory -Filter 'SVoice.GameBar_*.msix' | Remove-Item -Force
 $packagePath = Join-Path $outputDirectory "SVoice.GameBar_$($packageVersion)_x64.msix"
 $certificatePath = Join-Path $outputDirectory 'SVoice.GameBar.cer'
-$outputInstallerPath = Join-Path $outputDirectory 'Install-SVoice-GameBar.ps1'
-
 Copy-Item -LiteralPath $sourcePackage.FullName -Destination $packagePath -Force
-
-& dotnet publish $bridgeProject `
-    '-c=Release' `
-    '-r=win-x64' `
-    '--self-contained=true' `
-    '-p:Platform=x64' `
-    '-p:PublishSingleFile=true' `
-    '-p:DebugType=None' `
-    '-p:DebugSymbols=false' `
-    "-o=$bridgeOutputDirectory" `
-    '--nologo'
-if ($LASTEXITCODE -ne 0) {
-    throw "A publicação do bridge XTTS falhou com código $LASTEXITCODE."
-}
 
 $certificate = Get-ChildItem -Path Cert:\CurrentUser\My |
     Where-Object {
@@ -70,10 +63,6 @@ if ($null -eq $certificate) {
 
 Export-Certificate -Cert $certificate -FilePath $certificatePath -Force | Out-Null
 
-$installerContent = Get-Content -Raw -LiteralPath $installerScript
-$installerContent = $installerContent.Replace('__SVOICE_CERT_THUMBPRINT__', $certificate.Thumbprint)
-Set-Content -LiteralPath $outputInstallerPath -Value $installerContent -Encoding utf8
-
 $windowsKitBin = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\bin'
 $signToolPath = Get-ChildItem -LiteralPath $windowsKitBin -Directory |
     Sort-Object Name -Descending |
@@ -96,4 +85,5 @@ if ($null -eq $signature.SignerCertificate -or
     throw 'O MSIX foi gerado, mas a assinatura não pôde ser confirmada.'
 }
 
-Write-Host "Pacote instalável criado em: $outputDirectory"
+Write-Host "Pacote assinado: $packagePath"
+Write-Host "Certificado público: $certificatePath"

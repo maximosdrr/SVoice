@@ -1,116 +1,85 @@
 # SVoice
 
-Overlay desktop para Windows que transforma texto digitado em voz. A interface
-fica sempre no topo, pode ser recolhida e tem transparência ajustável.
+SVoice é um widget standalone para Xbox Game Bar que transforma texto em voz
+clonada localmente com XTTS v2 e envia o áudio ao microfone virtual VB-CABLE.
+A versão 2 não depende do aplicativo Flutter, de Python instalado pelo usuário
+ou de ferramentas de desenvolvimento.
 
 ## Recursos
 
-- texto para voz usando as vozes instaladas no Windows;
-- clonagem local de voz com XTTSv2 a partir de um ou vários áudios de referência;
-- processamento automático por GPU, com fallback para CPU, ou seleção manual
-  de GPU/CPU;
-- seleção de voz, volume, velocidade e tom;
-- modo Eco para ouvir na saída padrão do Windows a mesma fala enviada ao
-  microfone virtual;
-- histórico curto com repetição por clique;
-- `Enter` para falar e `Esc` para interromper;
-- atalho global configurável para ocultar ou trazer a janela (inicialmente
-  `Shift + Aspas`);
-- modo compacto e opção de manter o overlay sempre no topo;
-- widget fixável para Xbox Game Bar com clonagem XTTS, seleção de perfis e
-  modo Eco independente;
-- guia integrado para conectar a saída ao Discord;
-- preferências salvas entre execuções.
-- instalador completo com microfone virtual e roteamento automático do TTS.
+- clonagem local de voz a partir de WAV, MP3, M4A, FLAC ou OGG;
+- síntese XTTS v2 em português diretamente pela Xbox Game Bar;
+- histórico, renomeação e exclusão de perfis;
+- envio automático para `CABLE Input`;
+- modo Eco para ouvir a mesma fala na saída padrão;
+- aceleração NVIDIA CUDA;
+- AMD/Intel DirectML experimental, ativado somente após uma síntese de
+  validação completa;
+- fallback automático para CPU;
+- cancelamento, progresso e diagnóstico do backend;
+- instalador offline dos runtimes com o pacote oficial do VB-CABLE.
 
-## Clonagem de voz
+Use apenas vozes para as quais você tenha autorização. O modelo XTTS v2 usa a
+Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
-O motor XTTS é iniciado e encerrado pelo próprio SVoice, sem uma segunda
-janela e sem exigir que o usuário instale ou abra o Python. Em **Configurações
-> Vozes clonadas**, selecione um ou vários áudios limpos de uma única pessoa.
-O nome é opcional; se ficar vazio, o SVoice usa o nome do primeiro arquivo. O
-SVoice aceita até 30 minutos no total, corta o material em trechos de 20
-segundos e descarta automaticamente o conteúdo excedente.
+## Instalação
 
-O modo **Automático** usa uma GPU NVIDIA compatível quando disponível. Se a
-GPU não estiver disponível ou não concluir a geração, o SVoice tenta novamente
-pela CPU. Também é possível forçar **GPU** ou **CPU** nas configurações. A CPU
-funciona sem placa de vídeo dedicada, mas a primeira carga e cada fala podem
-demorar mais.
+Execute `SVoice-Setup-2.0.1.exe` como administrador, mantenha marcadas as
+opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
+driver for instalado pela primeira vez, reinicie o Windows.
 
-O modelo XTTSv2 não fica dentro do instalador: ele é baixado pelo próprio
-SVoice na primeira geração. O download e os perfis ficam em
-`%LOCALAPPDATA%\SVoice\XTTS`.
-Use somente vozes para as quais você tenha autorização.
+Depois:
 
-## Usar no Discord
+1. Abra a Xbox Game Bar com `Win + G`.
+2. Abra o menu de widgets e escolha **SVoice**.
+3. No Discord, selecione **CABLE Output (VB-Audio Virtual Cable)** como
+   microfone.
+4. No widget, clone ou selecione uma voz, escreva a frase e pressione `Enter`.
 
-O instalador completo inclui o pacote oficial do VB-CABLE, um driver puramente
-virtual — nenhum cabo ou equipamento físico é necessário.
+Consulte [instalação e uso](docs/instalacao-e-uso.md),
+[backends](docs/backends.md), [segurança](docs/seguranca.md) e
+[solução de problemas](docs/solucao-de-problemas.md).
 
-1. Execute o SVoice Setup como administrador e mantenha marcada a instalação
-   do microfone virtual.
-2. Reinicie o Windows quando o instalador solicitar.
-3. O SVoice detectará e selecionará `CABLE Input` automaticamente.
-4. No Discord, em **Configurações > Voz e vídeo**, selecione `CABLE Output`
-   como dispositivo de entrada.
-5. Se o começo ou o fim das frases for cortado, desative a supressão de ruído
-   e ajuste manualmente a sensibilidade de entrada do Discord.
+## Compilação
 
-Nas configurações do SVoice, ative **Modo Eco** para ouvir simultaneamente na
-saída padrão do Windows a fala que está sendo enviada ao `CABLE Input`. O Eco
-só fica ativo enquanto o microfone virtual estiver selecionado, evitando
-duplicação quando o aplicativo já estiver reproduzindo diretamente nos
-alto-falantes ou fones.
+Requisitos de desenvolvimento:
 
-O botão **Conectar ao Discord** dentro do app mostra essas instruções e abre o
-Mixer de volume do Windows.
+- Windows 10/11 x64;
+- .NET SDK 10;
+- Visual Studio Build Tools com SDK UWP/Windows;
+- Inno Setup 7;
+- PowerShell 7;
+- conexão durante a criação inicial dos packs de runtime.
 
-VB-CABLE é um donationware da VB-Audio Software. O pacote base oficial é
-redistribuído sem modificações de acordo com as condições publicadas em
-https://vb-audio.com/Services/licensing.htm. Contribuições ao projeto original
-são bem-vindas em https://vb-audio.com/Cable/.
-
-## Executar em desenvolvimento
-
-Requisitos para o aplicativo: Flutter com suporte a desktop Windows, Visual
-Studio com a carga de trabalho C++ e `nuget.exe` disponível no `PATH`. Para
-gerar o serviço integrado de clonagem, use também Python 3.11 ou 3.12; esse
-Python é necessário somente no computador de desenvolvimento.
+Gerar runtimes, MSIX e instalador:
 
 ```powershell
-flutter pub get
-flutter run -d windows
-```
-
-## Widget da Xbox Game Bar
-
-O widget permite digitar, clonar uma voz com áudios de referência, selecionar
-perfis XTTS e transmitir o TTS sem sair do jogo. Para gerar o pacote MSIX
-assinado e seu instalador local:
-
-```powershell
+.\service\runtime\build-runtime.ps1
 .\gamebar\build-widget-package.ps1
+.\installer\build-installer.ps1 -SkipRuntimeBuild -SkipWidgetBuild
 ```
 
-Os arquivos são gerados em `artifacts\gamebar`. Mais detalhes estão em
-`gamebar\README.md`.
+Os artefatos são criados em `artifacts/`, diretório ignorado pelo Git.
 
-## Validar e compilar
+## Testes
 
 ```powershell
-flutter analyze
-flutter test
-flutter build windows --release
+dotnet build .\installer\SVoice.Setup\SVoice.Setup.csproj -c Release -p:Platform=x64
+python -m pytest .\service\tests -q
 ```
 
-Para compilar o mecanismo XTTS e gerar o instalador completo:
+O aceite de um backend de GPU exige também o teste integrado de carga do
+modelo, síntese curta e longa, chamadas consecutivas, cancelamento e fallback.
 
-```powershell
-.\python_service\build-service.ps1
-.\installer\build-installer.ps1 -SkipXtssBuild
-```
+## Código Flutter legado
 
-O pacote de produção é gerado em
-`build/windows/x64/runner/Release`. Mantenha o executável, as DLLs e a pasta
-`data` juntos ao distribuir o aplicativo.
+O instalador e o widget 2.0 já não usam Flutter. O código Flutter permanece
+temporariamente no histórico de trabalho apenas até o gate final de paridade,
+instalação, atualização e desinstalação. Depois desse aceite ele será removido
+do branch principal, permanecendo recuperável pela tag `svoice-pre-standalone`.
+
+## VB-CABLE
+
+VB-CABLE é software donationware da VB-Audio Software e é redistribuído sem
+modificações. Origem e contribuições: <https://vb-cable.com> e
+<https://vb-audio.com/Cable/>.

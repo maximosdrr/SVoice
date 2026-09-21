@@ -215,10 +215,61 @@ class MigrationTests(RegistryFixture):
         self.assertEqual(profile["status"], "missing_references")
         self.assertEqual(len(registry.list()), 1)
 
-    def test_corrupted_registry_falls_back_to_empty(self) -> None:
+    def test_corrupted_registry_is_preserved_without_a_backup(self) -> None:
         self.paths.registry_path.write_text("{not json", encoding="utf-8")
+        with self.assertRaises(ServiceError) as captured:
+            ProfileRegistry(self.paths)
+        self.assertEqual(captured.exception.code, "profile_registry_corrupted")
+        self.assertEqual(self.paths.registry_path.read_text(encoding="utf-8"), "{not json")
+
+    def test_empty_registry_recovers_orphaned_profile_from_backup(self) -> None:
+        voice_dir = self.paths.voices_dir / "abc123"
+        voice_dir.mkdir(parents=True)
+        reference = write_wav(voice_dir / "reference_0001.wav", 4)
+        self.paths.registry_path.write_text(
+            json.dumps({"schema_version": DATA_SCHEMA_VERSION, "profiles": []}),
+            encoding="utf-8",
+        )
+        self.paths.backups_dir.mkdir(parents=True, exist_ok=True)
+        backup = self.paths.backups_dir / "profiles-previous.json"
+        backup.write_text(
+            json.dumps({
+                "schema_version": DATA_SCHEMA_VERSION,
+                "profiles": [{
+                    "id": "abc123",
+                    "name": "Voice 1",
+                    "reference_paths": [str(reference)],
+                    "duration_seconds": 4,
+                    "source_count": 1,
+                    "truncated": False,
+                    "created_at": "2026-09-20T22:07:36+00:00",
+                }],
+            }),
+            encoding="utf-8",
+        )
+
         registry = ProfileRegistry(self.paths)
+
+        self.assertEqual(len(registry.list()), 1)
+        self.assertEqual(registry.migration_report["recovered_from"], str(backup))
+        stored = json.loads(self.paths.registry_path.read_text(encoding="utf-8"))
+        self.assertEqual(stored["profiles"][0]["id"], "abc123")
+
+    def test_empty_registry_does_not_restore_deleted_profile(self) -> None:
+        self.paths.registry_path.write_text(
+            json.dumps({"schema_version": DATA_SCHEMA_VERSION, "profiles": []}),
+            encoding="utf-8",
+        )
+        self.paths.backups_dir.mkdir(parents=True, exist_ok=True)
+        (self.paths.backups_dir / "profiles-previous.json").write_text(
+            json.dumps({"schema_version": DATA_SCHEMA_VERSION, "profiles": [{"id": "deleted", "name": "Old"}]}),
+            encoding="utf-8",
+        )
+
+        registry = ProfileRegistry(self.paths)
+
         self.assertEqual(registry.list(), [])
+        self.assertIsNone(registry.migration_report["recovered_from"])
 
 
 class TempCleanupTests(RegistryFixture):

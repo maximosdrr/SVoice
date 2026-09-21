@@ -305,12 +305,20 @@ internal sealed class XttsServiceHost : IDisposable
             {
                 if (process.ExitCode == 3)
                 {
-                    var existing = ReadDiscovery();
-                    if (existing != null && await IsHealthyAsync(existing))
+                    // Another instance (for example one started by the installer)
+                    // holds the mutex; wait for it to publish its discovery file.
+                    var adoptDeadline = DateTimeOffset.UtcNow.AddSeconds(60);
+                    while (DateTimeOffset.UtcNow < adoptDeadline)
                     {
-                        _endpoint = existing;
-                        BridgeLog.Write($"XTTS service already running (pid {existing.Pid}).");
-                        return;
+                        var existing = ReadDiscovery();
+                        if (existing != null && await IsHealthyAsync(existing))
+                        {
+                            _endpoint = existing;
+                            BridgeLog.Write($"XTTS service already running (pid {existing.Pid}).");
+                            return;
+                        }
+
+                        await Task.Delay(500);
                     }
                 }
 
