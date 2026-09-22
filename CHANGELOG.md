@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.3 — 2026-09-22
+
+- empacota o widget e o runtime .NET 10 no mesmo MSIX para instalações limpas;
+- impede a geração de um MSIX que dependa do .NET instalado na máquina;
+- valida a versão mínima da Xbox Game Bar exigida pelas tarefas em segundo plano;
+- testa a inicialização real do runtime e do XAML depois de instalar o widget.
+
+## 2.1.2 — 2026-09-22
+
+- inicia uma sessão de áudio silenciosa assim que o texto é enviado;
+- mantém essa sessão ativa durante o processamento XTTS em segundo plano;
+- troca o silêncio pela fala pronta sem exigir que a Xbox Game Bar permaneça aberta.
+
 ## 2.1.1 — 2026-09-22
 
 - mantém a síntese XTTS ativa quando a Xbox Game Bar é ocultada durante o processamento;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Gaming.XboxGameBar;
@@ -59,6 +60,8 @@ namespace SVoice.GameBar
 
         private IRandomAccessStream? _currentStream;
         private IRandomAccessStream? _echoStream;
+        private IRandomAccessStream? _synthesisKeepAliveTemplateStream;
+        private IRandomAccessStream? _synthesisKeepAliveStream;
         private XboxGameBarWidget? _widget;
         private XboxGameBarWidgetActivity? _speechActivity;
         private IReadOnlyList<ClonedVoiceProfile> _profiles = Array.Empty<ClonedVoiceProfile>();
@@ -133,6 +136,7 @@ namespace SVoice.GameBar
                 LoadSettings();
                 await LoadHistoryAsync();
                 await ConfigureAudioOutputAsync();
+                await PrepareSynthesisAudioKeepAliveAsync();
                 await ApplyCompactAsync(_compact, persist: false);
                 await RefreshXttsAsync();
                 await Ui(() => MessageBox.Focus(FocusState.Programmatic));
@@ -968,6 +972,7 @@ namespace SVoice.GameBar
                 StopPlayback();
                 HideError();
                 StartSpeechActivity();
+                await StartSynthesisAudioKeepAliveAsync();
                 AddToHistory(text);
                 SpeakIcon.Glyph = "";
                 MessageBox.Text = string.Empty;
@@ -1008,6 +1013,7 @@ namespace SVoice.GameBar
                 await Ui(() =>
                 {
                     SetSpeakingState();
+                    _player.IsLoopingEnabled = false;
                     if (_echoEnabled && _usingVirtualCable)
                     {
                         _echoStream = _currentStream.CloneStream();
@@ -1017,6 +1023,8 @@ namespace SVoice.GameBar
                     _player.Source = MediaSource.CreateFromStream(_currentStream, contentType);
                     _player.Play();
                     App.Log("Speech playback started.");
+                    _synthesisKeepAliveStream?.Dispose();
+                    _synthesisKeepAliveStream = null;
                     if (_echoPlayer.Source != null)
                     {
                         _echoPlayer.Play();
@@ -1068,6 +1076,61 @@ namespace SVoice.GameBar
             return stream;
         }
 
+        private async Task PrepareSynthesisAudioKeepAliveAsync()
+        {
+            if (_synthesisKeepAliveTemplateStream == null)
+            {
+                _synthesisKeepAliveTemplateStream = await CreateAudioStreamAsync(CreateSilentWave());
+            }
+        }
+
+        private async Task StartSynthesisAudioKeepAliveAsync()
+        {
+            // Game Bar reliably preserves an audio session that was already
+            // playing when the overlay is dismissed, but may silence a new
+            // session first started after it is hidden. Looping one second of
+            // silence keeps the same MediaPlayer session active while XTTS is
+            // generating; the real source replaces it as soon as it is ready.
+            await PrepareSynthesisAudioKeepAliveAsync();
+            _synthesisKeepAliveStream?.Dispose();
+            _synthesisKeepAliveStream = _synthesisKeepAliveTemplateStream!.CloneStream();
+            _player.IsLoopingEnabled = true;
+            _player.Source = MediaSource.CreateFromStream(_synthesisKeepAliveStream, "audio/wav");
+            _player.Play();
+            App.Log("Synthesis audio keep-alive started.");
+        }
+
+        private static byte[] CreateSilentWave()
+        {
+            const int sampleRate = 8000;
+            const short channels = 1;
+            const short bitsPerSample = 16;
+            const int seconds = 1;
+            const int dataLength = sampleRate * channels * (bitsPerSample / 8) * seconds;
+
+            using var output = new MemoryStream(44 + dataLength);
+            using (var writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true))
+            {
+                writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+                writer.Write(36 + dataLength);
+                writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+                writer.Write(Encoding.ASCII.GetBytes("fmt "));
+                writer.Write(16);
+                writer.Write((short)1);
+                writer.Write(channels);
+                writer.Write(sampleRate);
+                writer.Write(sampleRate * channels * (bitsPerSample / 8));
+                writer.Write((short)(channels * (bitsPerSample / 8)));
+                writer.Write(bitsPerSample);
+                writer.Write(Encoding.ASCII.GetBytes("data"));
+                writer.Write(dataLength);
+                writer.Write(new byte[dataLength]);
+                writer.Flush();
+            }
+
+            return output.ToArray();
+        }
+
         private void StartSpeechActivity()
         {
             if (_widget == null)
@@ -1089,10 +1152,13 @@ namespace SVoice.GameBar
 
         private void StopPlayback()
         {
+            _player.IsLoopingEnabled = false;
             _player.Pause();
             _player.Source = null;
             _currentStream?.Dispose();
             _currentStream = null;
+            _synthesisKeepAliveStream?.Dispose();
+            _synthesisKeepAliveStream = null;
             StopEchoPlayback();
             CompleteSpeechActivity();
             SpeakIcon.Glyph = "";

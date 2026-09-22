@@ -1,4 +1,4 @@
-# Entrega — SVoice 2.1.1 (Xbox Game Bar standalone)
+# Entrega — SVoice 2.1.3 (Xbox Game Bar standalone)
 
 ## Artefatos
 
@@ -9,8 +9,8 @@ os hashes abaixo permitem conferir o que foi distribuído.
 
 | Arquivo | Tamanho | SHA-256 |
 | --- | --- | --- |
-| `SVoice-Setup-2.1.1.exe` (instalador único, offline, todos os packs) | 2 882 910 919 bytes | `6e661fcc14f08d01b0a7ea3441623169960a70d5f832cfc4685f8836bb7a126a` |
-| `widget/SVoice.GameBar_2.1.1.0_x64.msix` (dentro do instalador) | 49 052 146 bytes | `bb8cafdd0d9f7d8698c120cb7fe39c7e40d0034bda5f1fa446ab67c864bc1ec0` |
+| `SVoice-Setup-2.1.3.exe` (instalador único, offline, todos os packs) | 2 918 393 978 bytes | `d7d74e5d79fbc56425d212cfedded82088caf57fa8ded05e23e2cd1ac61e9787` |
+| `widget/SVoice.GameBar_2.1.3.0_x64.msix` (dentro do instalador) | 84 706 450 bytes | `0d071c493fa15dff8f86933881d878273ef778f1660df0a6ca273294c1132b36` |
 | `runtime/svoice-python-3.12.10.zip` | 11 945 116 bytes | `ae9071ff4b26ec8b4738febfbda093887a98700ecfc200e9c737e42d918b52d2` |
 | `runtime/svoice-pack-base-2026.09.21.zip` | 199 993 354 bytes | `f12b7fe5f6e5d0bcbe6399795bf404b23c4de355bd2cc62e62f978d4d01dee18` |
 | `runtime/svoice-pack-torch-cpu-2026.09.21.zip` | 131 902 593 bytes | `18149bc693efd66abcdb104c31b586fe546e10fe4eb5f433f024e30b0a0f7056` |
@@ -83,8 +83,10 @@ via imageio-ffmpeg (GPL v3, processo separado), Python (PSF).
    Bar foram validadas com o 2.0.4; no 2.1.0 (redesenho) foi validada a
    abertura e o modo compacto dentro da Game Bar, e o restante na janela
    standalone (mesmo código). No 2.1.1 foram validados o pacote, a capacidade
-   de áudio em segundo plano e a ativação dentro da Game Bar; a confirmação
-   auditiva após ocultar a sobreposição continua sendo manual.
+   de áudio em segundo plano e a ativação dentro da Game Bar. O 2.1.2 também
+   inicia uma sessão silenciosa antes da síntese. O 2.1.3 passou a carregar o
+   runtime .NET no próprio MSIX e valida a inicialização do runtime/XAML; a
+   confirmação visual e auditiva em outra máquina continua sendo manual.
 6. **Modelo XTTS v2**: 1,9 GB baixados de `huggingface.co/coqui/XTTS-v2` na
    instalação (ou fornecidos ao lado do instalador); a primeira fala após
    abrir o widget carrega o modelo (10–30 s em GPU).

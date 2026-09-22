@@ -68,6 +68,29 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Atividade de fala sobrevive ao `Page.Unloaded` e só termina no fim/cancelamento da mídia | ✅ caminho de ciclo de vida corrigido e compilado; registros de início/fim adicionados |
 | Confirmação auditiva digitando, ocultando com Win+G durante a síntese e aguardando a fala | ⏳ requer interação manual porque a automação desta sessão não recebeu acesso às janelas nativas |
 
+## Widget 2.1.2 — síntese iniciada antes de ocultar a Game Bar
+
+| Cenário | Evidência |
+| --- | --- |
+| Sessão silenciosa iniciada no mesmo `MediaPlayer` antes da chamada XTTS e substituída pela fala pronta | ✅ implementação compilada em Debug e Release |
+| Testes do serviço | ✅ 45 testes OK; 7 opcionais de FFmpeg ignorados no ambiente de desenvolvimento |
+| MSIX 2.1.2 assinado, instalado e ativado dentro da Game Bar | ✅ pacote com status `Ok`; XTTS/CUDA pronto e perfil carregado |
+| Instalador offline completo 2.1.2 | ✅ gerado e SHA-256 confirmado |
+| Confirmação auditiva com Enter → Win+G imediatamente, ainda em PREPARANDO/GERANDO | ⏳ validação manual do usuário |
+
+## Widget 2.1.3 — instalação limpa e pacote autocontido
+
+| Cenário | Evidência |
+| --- | --- |
+| MSIX contém o runtime .NET 10 necessário ao widget | ✅ `coreclr.dll`, `hostfxr.dll` e `System.Private.CoreLib.dll` presentes na raiz do pacote |
+| Build rejeita regressão para pacote dependente de framework | ✅ `build-widget.ps1` valida as três bibliotecas obrigatórias dentro do MSIX |
+| Pré-requisito da Game Bar | ✅ versão instalada 7.326.8061.0 aceita; versões anteriores a 6.124.0122.0 são bloqueadas com orientação de atualização |
+| Atualização 2.1.2 → 2.1.3 | ✅ pacote assinado instalado, catálogo atualizado e versão anterior substituída |
+| Ativação de diagnóstico sem janela | ✅ `runtime e XAML inicializados` pelo novo `--startup-probe` |
+| Verificação pós-instalação completa | ✅ widget 2.1.3, VB-CABLE, runtime CUDA, modelo e último teste de síntese confirmados |
+| Testes do serviço | ✅ 45 testes OK; 7 opcionais de FFmpeg ignorados no ambiente de desenvolvimento |
+| Instalação e abertura visual em Windows limpo sem .NET/Visual Studio | ⏳ validação manual do usuário |
+
 ## Instalador (`SVoice.Setup` + Inno Setup)
 
 | Cenário | Evidência |

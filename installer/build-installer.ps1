@@ -16,7 +16,7 @@ No Flutter, Python or Visual Studio is required on the end user's machine.
 [CmdletBinding()]
 param(
   [string]$IsccPath = '',
-  [string]$Version = '2.1.1',
+  [string]$Version = '2.1.3',
   [switch]$SkipWidgetBuild,
   [switch]$SkipRuntimeBuild
 )

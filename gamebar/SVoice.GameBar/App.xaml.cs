@@ -85,6 +85,31 @@ namespace SVoice.GameBar
 
         protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
+            if (string.Equals(args.Arguments, "--startup-probe", StringComparison.Ordinal))
+            {
+                try
+                {
+                    var probeFrame = CreateFrame();
+                    Window.Current.Content = probeFrame;
+                    if (!probeFrame.Navigate(typeof(WidgetPage)))
+                    {
+                        throw new InvalidOperationException("A página do widget recusou a navegação de diagnóstico.");
+                    }
+
+                    Log("Startup probe passed.");
+                }
+                catch (Exception exception)
+                {
+                    Log($"Startup probe failed: {exception}");
+                }
+                finally
+                {
+                    Exit();
+                }
+
+                return;
+            }
+
             var frame = Window.Current.Content as Frame ?? CreateFrame();
             Window.Current.Content = frame;
 

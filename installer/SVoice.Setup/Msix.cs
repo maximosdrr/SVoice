@@ -1,4 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using Windows.ApplicationModel.AppExtensions;
 using Windows.Management.Deployment;
@@ -11,6 +12,9 @@ internal static class Msix
     public const string PackageFamily = "SVoice.GameBar_61qvngw278t1j";
     public const string WidgetExtensionId = "SVoiceWidget";
     private const string GameBarExtensionName = "microsoft.gameBarUIExtension";
+    private const string AppUserModelId = PackageFamily + "!App";
+    private const string StartupProbePassed = "Startup probe passed.";
+    private const string StartupProbeFailed = "Startup probe failed:";
 
     public static CommandResult InstallCertificate(Options options)
     {
@@ -98,9 +102,18 @@ internal static class Msix
                 .With("version", version);
         }
 
+        var startupProbe = await ProbeStartupAsync();
+        if (!startupProbe.Ok)
+        {
+            return CommandResult.Fail($"O widget foi registrado, mas não conseguiu inicializar: {startupProbe.Detail}")
+                .With("version", version)
+                .With("startup_probe", startupProbe.Detail);
+        }
+
         Log.Write($"Widget installed: {installed?.Id.FullName}");
         return CommandResult.Success($"Widget SVoice {version} instalado e registrado na Xbox Game Bar.")
             .With("version", version)
+            .With("startup_probe", startupProbe.Detail)
             .With("previous_version", previous != null ? FormatVersion(previous.Value) : null);
     }
 
@@ -158,6 +171,100 @@ internal static class Msix
         }
     }
 
+    public static async Task<(bool Ok, string Detail)> ProbeStartupAsync()
+    {
+        var logPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Packages",
+            PackageFamily,
+            "LocalState",
+            "gamebar.log");
+        var initialLength = File.Exists(logPath) ? new FileInfo(logPath).Length : 0L;
+        uint processId = 0;
+
+        try
+        {
+            var manager = (IApplicationActivationManager)new ApplicationActivationManager();
+            var result = manager.ActivateApplication(
+                AppUserModelId,
+                "--startup-probe",
+                ActivateOptions.NoErrorUI | ActivateOptions.NoSplashScreen,
+                out processId);
+            if (result < 0)
+            {
+                return (false, $"ativação retornou 0x{result:X8}");
+            }
+
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            while (DateTime.UtcNow < deadline)
+            {
+                var appended = ReadLogTail(logPath, initialLength);
+                if (appended.Contains(StartupProbePassed, StringComparison.Ordinal))
+                {
+                    return (true, "runtime e XAML inicializados");
+                }
+
+                var failure = appended.IndexOf(StartupProbeFailed, StringComparison.Ordinal);
+                if (failure >= 0)
+                {
+                    var detail = appended[(failure + StartupProbeFailed.Length)..].Trim();
+                    return (false, string.IsNullOrWhiteSpace(detail) ? "falha no carregamento do XAML" : detail);
+                }
+
+                await Task.Delay(250);
+            }
+
+            return (false, "a ativação não confirmou a inicialização em 30 segundos; verifique o runtime e o log do widget");
+        }
+        catch (Exception exception)
+        {
+            return (false, exception.Message);
+        }
+        finally
+        {
+            if (processId != 0)
+            {
+                try
+                {
+                    using var process = System.Diagnostics.Process.GetProcessById((int)processId);
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // The probe normally exits on its own.
+                }
+            }
+        }
+    }
+
+    private static string ReadLogTail(string path, long initialLength)
+    {
+        try
+        {
+            if (!File.Exists(path))
+            {
+                return string.Empty;
+            }
+
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (initialLength > stream.Length)
+            {
+                initialLength = 0;
+            }
+
+            stream.Seek(initialLength, SeekOrigin.Begin);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
     public static string? InstalledVersion()
     {
         try
@@ -174,5 +281,39 @@ internal static class Msix
     private static string FormatVersion(Windows.ApplicationModel.PackageVersion version)
     {
         return $"{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+    }
+
+    [Flags]
+    private enum ActivateOptions
+    {
+        None = 0,
+        DesignMode = 1,
+        NoErrorUI = 2,
+        NoSplashScreen = 4,
+    }
+
+    [ComImport]
+    [Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")]
+    private class ApplicationActivationManager
+    {
+    }
+
+    [ComImport]
+    [Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IApplicationActivationManager
+    {
+        [PreserveSig]
+        int ActivateApplication(
+            [MarshalAs(UnmanagedType.LPWStr)] string appUserModelId,
+            [MarshalAs(UnmanagedType.LPWStr)] string arguments,
+            ActivateOptions options,
+            out uint processId);
+
+        [PreserveSig]
+        int ActivateForFile(IntPtr appUserModelId, IntPtr itemArray, IntPtr verb, out uint processId);
+
+        [PreserveSig]
+        int ActivateForProtocol(IntPtr appUserModelId, IntPtr itemArray, out uint processId);
     }
 }

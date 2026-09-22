@@ -5,6 +5,6 @@ Xbox Game Bar bridge (or by the installer/diagnostics helper), listens only on
 ``127.0.0.1`` with a bearer token and exits after a period of inactivity.
 """
 
-SERVICE_VERSION = "2.1.1"
+SERVICE_VERSION = "2.1.3"
 PROTOCOL_VERSION = 2
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"

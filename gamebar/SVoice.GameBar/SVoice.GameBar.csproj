@@ -6,6 +6,8 @@
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <UseUwp>true</UseUwp>
     <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
     <UseRidGraph>true</UseRidGraph>
     <DefaultLanguage>pt-BR</DefaultLanguage>
     <RootNamespace>SVoice.GameBar</RootNamespace>

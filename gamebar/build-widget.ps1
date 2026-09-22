@@ -40,7 +40,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "A publicação do bridge XTTS falhou com código $LASTEXITCODE."
 }
 
-& $msbuildPath $projectPath '/t:Rebuild' "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:GenerateAppxPackageOnBuild=true' '/p:AppxPackageSigningEnabled=false' '/m' '/restore' '/v:minimal'
+& $msbuildPath $projectPath '/t:Rebuild' "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RuntimeIdentifier=win-x64' '/p:SelfContained=true' '/p:GenerateAppxPackageOnBuild=true' '/p:AppxPackageSigningEnabled=false' '/m' '/restore' '/v:minimal'
 if ($LASTEXITCODE -ne 0) {
     throw "A compilação do widget falhou com código $LASTEXITCODE."
 }
@@ -62,6 +62,23 @@ $package = $packageCandidates |
 
 if ($null -eq $package) {
     throw 'A compilação terminou, mas nenhum pacote MSIX foi encontrado.'
+}
+
+# A máquina de desenvolvimento já possui o .NET 10 e pode esconder uma
+# publicação dependente de framework. O widget é distribuído diretamente por
+# nosso instalador, então o MSIX precisa carregar o runtime completo.
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+try {
+    $entryNames = @($archive.Entries | ForEach-Object FullName)
+    $requiredRuntimeFiles = @('coreclr.dll', 'hostfxr.dll', 'System.Private.CoreLib.dll')
+    $missingRuntimeFiles = @($requiredRuntimeFiles | Where-Object { $_ -notin $entryNames })
+    if ($missingRuntimeFiles.Count -gt 0) {
+        throw "O MSIX não é autocontido; arquivos ausentes: $($missingRuntimeFiles -join ', ')."
+    }
+}
+finally {
+    $archive.Dispose()
 }
 
 Write-Host "Widget compilado: $($package.FullName)"

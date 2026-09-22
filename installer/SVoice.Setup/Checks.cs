@@ -11,6 +11,9 @@ internal sealed record GpuInfo(string Name, string Vendor, string? DriverVersion
 internal static class Checks
 {
     private const int MinimumBuild = 19041;
+    // XboxGameBarWidgetActivity was introduced with Game Bar 6.124.0122.0.
+    // SVoice relies on it to finish XTTS jobs after the overlay is dismissed.
+    private static readonly Version MinimumGameBarVersion = new(6, 124, 122, 0);
     private const string GameBarFamily = "Microsoft.XboxGamingOverlay_8wekyb3d8bbwe";
     public const string GameBarStoreUri = "ms-windows-store://pdp/?productid=9NZKPSTSNW4P";
     private const long MinimumFreeBytes = 12L * 1024 * 1024 * 1024;
@@ -42,6 +45,14 @@ internal static class Checks
         if (gameBar == null)
         {
             blocking.Add("A Xbox Game Bar não está instalada. Instale-a pela Microsoft Store antes de continuar.");
+        }
+        else if (!Version.TryParse(gameBar, out var parsedGameBarVersion))
+        {
+            blocking.Add("Não foi possível validar a versão da Xbox Game Bar. Atualize-a pela Microsoft Store e tente novamente.");
+        }
+        else if (parsedGameBarVersion < MinimumGameBarVersion)
+        {
+            blocking.Add($"A Xbox Game Bar {gameBar} é antiga demais. Atualize-a pela Microsoft Store para a versão {MinimumGameBarVersion} ou superior.");
         }
 
         var gpus = DetectGpus();

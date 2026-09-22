@@ -21,6 +21,18 @@ internal static class Verification
         {
             problems.Add("widget ausente no catálogo da Game Bar");
         }
+        else
+        {
+            var startupProbe = await Msix.ProbeStartupAsync();
+            result.WithLine(startupProbe.Ok
+                ? "Inicialização do widget: runtime e XAML carregados"
+                : $"Inicialização do widget: FALHOU ({startupProbe.Detail})");
+            result.With("widget_startup_probe", startupProbe.Detail);
+            if (!startupProbe.Ok)
+            {
+                problems.Add("widget não conseguiu inicializar");
+            }
+        }
 
         var cable = await VbCable.DetectAsync();
         result.WithLine($"VB-CABLE: {cable.Summary}");
