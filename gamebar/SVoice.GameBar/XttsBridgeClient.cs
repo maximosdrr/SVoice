@@ -376,23 +376,6 @@ namespace SVoice.GameBar
         }
     }
 
-    internal sealed class VoiceChoice
-    {
-        public VoiceChoice(string label, string? profileId = null, bool usable = true)
-        {
-            Label = label;
-            ProfileId = profileId;
-            Usable = usable;
-        }
-
-        public string Label { get; }
-        public string? ProfileId { get; }
-        public bool Usable { get; }
-        public bool IsCloned => !string.IsNullOrWhiteSpace(ProfileId);
-
-        public override string ToString() => Label;
-    }
-
     internal sealed class OutputDeviceChoice
     {
         public OutputDeviceChoice(string label, string? id, bool isVirtualCable)

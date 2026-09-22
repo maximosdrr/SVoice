@@ -10,20 +10,76 @@
     mc:Ignorable="d">
 
     <Page.Resources>
+      <ResourceDictionary>
+        <!-- Keep the composer dark when focused (the classic UWP text box turns white). -->
+        <ResourceDictionary.ThemeDictionaries>
+            <ResourceDictionary x:Key="Default">
+                <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="#0AFFFFFF" />
+                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="#12FFFFFF" />
+                <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+                <SolidColorBrush x:Key="TextControlForeground" Color="#F0FFFFFF" />
+                <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#F0FFFFFF" />
+                <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#F6FFFFFF" />
+                <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#5CFFFFFF" />
+                <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#66FFFFFF" />
+                <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#4AFFFFFF" />
+                <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#668BE9D2" />
+                <!-- Sliders and combo boxes follow the mint accent instead of the system blue. -->
+                <SolidColorBrush x:Key="SliderTrackValueFill" Color="#FF8BE9D2" />
+                <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#FFA6F0DE" />
+                <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#FF6FD6BD" />
+                <SolidColorBrush x:Key="SliderTrackFill" Color="#28FFFFFF" />
+                <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#34FFFFFF" />
+                <SolidColorBrush x:Key="SliderThumbBackground" Color="#FF8BE9D2" />
+                <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#FFA6F0DE" />
+                <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#FF6FD6BD" />
+                <SolidColorBrush x:Key="ComboBoxBackground" Color="#12FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBackgroundPointerOver" Color="#1AFFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBackgroundPressed" Color="#20FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBorderBrush" Color="#22FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBorderBrushPointerOver" Color="#38FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBorderBrushPressed" Color="#38FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBackgroundFocused" Color="#1AFFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxBorderBrushFocused" Color="#668BE9D2" />
+                <SolidColorBrush x:Key="ComboBoxForegroundFocused" Color="#F0FFFFFF" />
+                <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="#338BE9D2" />
+                <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="#448BE9D2" />
+                <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPressed" Color="#558BE9D2" />
+            </ResourceDictionary>
+        </ResourceDictionary.ThemeDictionaries>
+
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF8BE9D2" />
+        <SolidColorBrush x:Key="TextDimBrush" Color="#70FFFFFF" />
+        <SolidColorBrush x:Key="TextBodyBrush" Color="#D0FFFFFF" />
+
+        <!-- Small, quiet icon button used in the header. -->
         <Style x:Key="HeaderIconButton" TargetType="Button">
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="26" />
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="24" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Background" Value="#12FFFFFF" />
-            <Setter Property="BorderBrush" Value="#18FFFFFF" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Foreground" Value="#9CFFFFFF" />
         </Style>
-        <Style x:Key="PanelTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="10" />
+        <Style x:Key="HeaderToggle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Foreground" Value="#9CFFFFFF" />
+        </Style>
+        <Style x:Key="MicroLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="9" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="CharacterSpacing" Value="100" />
-            <Setter Property="Foreground" Value="#B0FFFFFF" />
+            <Setter Property="Foreground" Value="#70FFFFFF" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style x:Key="SmallLabel" TargetType="TextBlock">
@@ -34,15 +90,25 @@
         </Style>
         <Style x:Key="BodyText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="10.5" />
-            <Setter Property="Foreground" Value="#C8FFFFFF" />
+            <Setter Property="Foreground" Value="#D0FFFFFF" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="CompactButton" TargetType="Button">
             <Setter Property="Height" Value="26" />
-            <Setter Property="Padding" Value="8,1" />
-            <Setter Property="FontSize" Value="9.5" />
+            <Setter Property="Padding" Value="9,1" />
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="#12FFFFFF" />
+            <Setter Property="BorderBrush" Value="#18FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
         </Style>
+        <Style x:Key="AccentButton" TargetType="Button" BasedOn="{StaticResource CompactButton}">
+            <Setter Property="Background" Value="#268BE9D2" />
+            <Setter Property="BorderBrush" Value="#408BE9D2" />
+            <Setter Property="Foreground" Value="#FF8BE9D2" />
+        </Style>
+      </ResourceDictionary>
     </Page.Resources>
 
     <Grid x:Name="RootGrid" Padding="8" Background="Transparent">
@@ -53,33 +119,32 @@
             BorderThickness="1"
             CornerRadius="18" />
 
-        <Grid Padding="14,11,14,11">
+        <Grid Padding="13,9,13,11">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="8" />
-                <RowDefinition Height="*" />
+                <RowDefinition x:Name="ContentRow" Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- Header -->
-            <Grid Grid.Row="0">
+            <!-- Header: identity, state, quiet controls -->
+            <Grid Grid.Row="0" Height="26">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="7" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="9" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="6" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Border Width="26" Height="26" Background="#FF8BE9D2" CornerRadius="8">
+                <Border Width="22" Height="22" Background="{StaticResource AccentBrush}" CornerRadius="7">
                     <TextBlock
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         FontFamily="Segoe UI Symbol"
-                        FontSize="16"
+                        FontSize="14"
                         FontWeight="SemiBold"
                         Foreground="#FF091016"
                         Text="≋" />
@@ -88,9 +153,10 @@
                 <TextBlock
                     Grid.Column="2"
                     VerticalAlignment="Center"
-                    FontSize="11.5"
+                    FontSize="11"
                     FontWeight="Bold"
-                    CharacterSpacing="150"
+                    CharacterSpacing="160"
+                    Foreground="#F0FFFFFF"
                     Text="SVOICE" />
 
                 <Ellipse
@@ -104,7 +170,7 @@
                 <TextBlock
                     x:Name="StatusText"
                     Grid.Column="5"
-                    Margin="6,0,6,0"
+                    Margin="6,0,8,0"
                     VerticalAlignment="Center"
                     FontSize="9"
                     FontWeight="Bold"
@@ -113,422 +179,160 @@
                     TextTrimming="CharacterEllipsis"
                     Text="INICIANDO" />
 
-                <Border
-                    Grid.Column="6"
-                    Padding="7,4"
-                    Background="#12FFFFFF"
-                    BorderBrush="#18FFFFFF"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    ToolTipService.ToolTip="Dispositivo de saída usado para a voz">
-                    <StackPanel Orientation="Horizontal">
-                        <FontIcon
-                            x:Name="OutputIcon"
-                            Margin="0,0,5,0"
-                            FontSize="10"
-                            Foreground="#FFFFC776"
-                            Glyph="&#xE720;" />
-                        <TextBlock
-                            x:Name="OutputText"
-                            FontSize="9"
-                            Foreground="#AFFFFFFF"
-                            Text="PROCURANDO SAÍDA" />
-                    </StackPanel>
-                </Border>
-
-                <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="4">
-                    <Button
-                        x:Name="HistoryButton"
-                        Style="{StaticResource HeaderIconButton}"
-                        Click="HistoryButton_Click"
-                        ToolTipService.ToolTip="Histórico de frases">
-                        <FontIcon FontSize="11" Glyph="&#xE81C;" />
-                    </Button>
+                <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="1">
+                    <ToggleButton
+                        x:Name="EchoButton"
+                        Style="{StaticResource HeaderToggle}"
+                        Click="EchoButton_Click"
+                        IsEnabled="False"
+                        ToolTipService.ToolTip="Eco: ouvir a fala também nos seus fones (requer VB-CABLE)">
+                        <FontIcon x:Name="EchoIcon" FontSize="11" Glyph="&#xE767;" />
+                    </ToggleButton>
                     <Button
                         x:Name="VoicesButton"
                         Style="{StaticResource HeaderIconButton}"
                         Click="VoicesButton_Click"
-                        ToolTipService.ToolTip="Gerenciar vozes clonadas">
+                        ToolTipService.ToolTip="Vozes: clonar, selecionar, renomear ou excluir">
                         <FontIcon FontSize="11" Glyph="&#xE77B;" />
                     </Button>
                     <Button
                         x:Name="SettingsButton"
                         Style="{StaticResource HeaderIconButton}"
                         Click="SettingsButton_Click"
-                        ToolTipService.ToolTip="Ajustes">
+                        ToolTipService.ToolTip="Ajustes e diagnóstico">
                         <FontIcon FontSize="11" Glyph="&#xE713;" />
                     </Button>
                     <Button
-                        x:Name="DiagnosticsButton"
+                        x:Name="CompactButton"
                         Style="{StaticResource HeaderIconButton}"
-                        Click="DiagnosticsButton_Click"
-                        ToolTipService.ToolTip="Diagnóstico do XTTS e da GPU">
-                        <FontIcon FontSize="11" Glyph="&#xE9D9;" />
+                        Click="CompactButton_Click"
+                        ToolTipService.ToolTip="Modo compacto: esconder o histórico">
+                        <FontIcon x:Name="CompactIcon" FontSize="10" Glyph="&#xE70E;" />
                     </Button>
                 </StackPanel>
             </Grid>
 
-            <!-- Main view -->
-            <Grid x:Name="MainView" Grid.Row="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="7" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="6" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-
-                <Border
-                    Grid.Row="0"
-                    Height="48"
-                    Background="#38000000"
-                    BorderBrush="#20FFFFFF"
-                    BorderThickness="1"
-                    CornerRadius="14">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="44" />
-                        </Grid.ColumnDefinitions>
-
-                        <TextBox
-                            x:Name="MessageBox"
-                            Margin="4,2,2,2"
-                            Padding="10,8"
-                            VerticalContentAlignment="Center"
-                            AcceptsReturn="False"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            FontSize="13"
-                            KeyDown="Composer_KeyDown"
-                            MaxLength="1000"
-                            PlaceholderText="Escreva o que você quer dizer…"
-                            TextWrapping="NoWrap" />
-
-                        <Button
-                            x:Name="SpeakButton"
-                            Grid.Column="1"
-                            Width="34"
-                            Height="34"
-                            Margin="3,0,6,0"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Background="#268BE9D2"
-                            BorderBrush="#408BE9D2"
-                            BorderThickness="1"
-                            Click="SpeakButton_Click"
-                            CornerRadius="11"
-                            ToolTipService.ToolTip="Falar (Enter) / Parar (Esc)">
-                            <FontIcon
-                                x:Name="SpeakIcon"
-                                FontSize="14"
-                                Foreground="#FF8BE9D2"
-                                Glyph="&#xE74A;" />
-                        </Button>
-                    </Grid>
-                </Border>
-
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="8" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="6" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="6" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock
-                        VerticalAlignment="Center"
-                        FontSize="9"
-                        FontWeight="Bold"
-                        Foreground="#70FFFFFF"
-                        CharacterSpacing="100"
-                        Text="VOZ" />
-
-                    <ComboBox
-                        x:Name="VoiceBox"
-                        Grid.Column="2"
-                        MinWidth="120"
-                        Height="28"
-                        HorizontalAlignment="Stretch"
-                        Padding="8,1"
-                        FontSize="10"
-                        SelectionChanged="VoiceBox_SelectionChanged" />
-
-                    <Button
-                        x:Name="CloneVoiceButton"
-                        Grid.Column="4"
-                        Style="{StaticResource CompactButton}"
-                        Click="CloneVoiceButton_Click"
-                        ToolTipService.ToolTip="Criar uma voz clonada com áudios de referência">
-                        <StackPanel Orientation="Horizontal">
-                            <FontIcon Margin="0,0,5,0" FontSize="11" Glyph="&#xE8D4;" />
-                            <TextBlock VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold" Text="CLONAR" />
-                        </StackPanel>
-                    </Button>
-
-                    <Button
-                        x:Name="RefreshVoicesButton"
-                        Grid.Column="6"
-                        Width="28"
-                        Height="26"
-                        Padding="0"
-                        CornerRadius="8"
-                        Click="RefreshVoicesButton_Click"
-                        ToolTipService.ToolTip="Atualizar vozes e reconectar ao XTTS">
-                        <FontIcon FontSize="11" Glyph="&#xE72C;" />
-                    </Button>
-                </Grid>
-
-                <StackPanel Grid.Row="4" Spacing="4">
-                    <ProgressBar
-                        x:Name="JobProgress"
-                        Height="3"
-                        Foreground="#FFBFA6FF"
-                        IsIndeterminate="True"
-                        Visibility="Collapsed" />
-                    <TextBlock
-                        x:Name="JobMessage"
-                        FontSize="9.5"
-                        Foreground="#9FBFA6FF"
-                        TextTrimming="CharacterEllipsis"
-                        Visibility="Collapsed" />
-                    <Border
-                        x:Name="ErrorPanel"
-                        Padding="9,6"
-                        Background="#26FF7C87"
-                        BorderBrush="#40FF7C87"
-                        BorderThickness="1"
-                        CornerRadius="9"
-                        Visibility="Collapsed">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="1">
-                                <TextBlock
-                                    x:Name="ErrorText"
-                                    FontSize="10"
-                                    Foreground="#FFFFB3B9"
-                                    TextWrapping="Wrap"
-                                    MaxLines="2"
-                                    TextTrimming="CharacterEllipsis" />
-                                <TextBlock
-                                    x:Name="ErrorAction"
-                                    FontSize="9.5"
-                                    Foreground="#B8FFFFFF"
-                                    TextWrapping="Wrap"
-                                    MaxLines="2"
-                                    TextTrimming="CharacterEllipsis"
-                                    Visibility="Collapsed" />
-                            </StackPanel>
-                            <Button
-                                Grid.Column="1"
-                                Width="22"
-                                Height="22"
-                                Margin="6,0,0,0"
-                                Padding="0"
-                                VerticalAlignment="Top"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Click="DismissError_Click">
-                                <FontIcon FontSize="9" Glyph="&#xE711;" />
-                            </Button>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-
-                <Border
-                    x:Name="LastPhrasePanel"
-                    Grid.Row="5"
-                    Margin="0,6,0,0"
-                    Padding="10,6"
-                    VerticalAlignment="Top"
-                    Background="#0DFFFFFF"
-                    CornerRadius="10"
-                    Visibility="Collapsed"
-                    ToolTipService.ToolTip="Clique para repetir a última frase">
-                    <Button
-                        x:Name="RepeatLastButton"
-                        Padding="0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Stretch"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Click="RepeatLastButton_Click">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <FontIcon VerticalAlignment="Center" FontSize="11" Foreground="#8A8BE9D2" Glyph="&#xE8EE;" />
-                            <TextBlock
-                                x:Name="LastPhraseText"
-                                Grid.Column="2"
-                                VerticalAlignment="Center"
-                                FontSize="10"
-                                Foreground="#8FFFFFFF"
-                                MaxLines="1"
-                                TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </Button>
-                </Border>
-
-                <Grid Grid.Row="6" Margin="0,6,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="6" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock
-                        x:Name="HintText"
-                        VerticalAlignment="Center"
-                        FontSize="9.5"
-                        Foreground="#65FFFFFF"
-                        TextTrimming="CharacterEllipsis"
-                        Text="Enter: falar  •  Esc: parar" />
-
-                    <TextBlock
-                        x:Name="BackendBadge"
-                        Grid.Column="1"
-                        Margin="0,0,4,0"
-                        VerticalAlignment="Center"
-                        FontSize="9"
-                        Foreground="#70FFFFFF"
-                        Text="" />
-
-                    <ToggleButton
-                        x:Name="EchoButton"
-                        Grid.Column="3"
-                        MinWidth="60"
-                        Height="26"
-                        Padding="8,2"
-                        CornerRadius="8"
-                        Click="EchoButton_Click"
-                        IsEnabled="False"
-                        ToolTipService.ToolTip="Ouvir também na saída padrão do Windows (só com o VB-CABLE)">
-                        <StackPanel Orientation="Horizontal">
-                            <FontIcon Margin="0,0,5,0" FontSize="11" Glyph="&#xE767;" />
-                            <TextBlock VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold" Text="ECO" />
-                        </StackPanel>
-                    </ToggleButton>
-                </Grid>
+            <!-- Chat: sent phrases, newest at the bottom -->
+            <Grid x:Name="ChatArea" Grid.Row="1" Margin="0,8,0,0">
+                <TextBlock
+                    x:Name="ChatEmptyText"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="10.5"
+                    Foreground="#55FFFFFF"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap"
+                    Text="Escreva abaixo e pressione Enter para falar.&#x0a;Esc interrompe. Clique numa frase para repeti-la." />
+                <ScrollViewer
+                    x:Name="ChatScroll"
+                    HorizontalScrollMode="Disabled"
+                    VerticalScrollBarVisibility="Auto"
+                    VerticalScrollMode="Auto">
+                    <StackPanel x:Name="ChatStack" Padding="0,2,4,2" Spacing="5" />
+                </ScrollViewer>
             </Grid>
 
-            <!-- Secondary panels -->
-            <Grid x:Name="PanelView" Grid.Row="2" Visibility="Collapsed">
+            <!-- Secondary panels replace the chat area -->
+            <Grid x:Name="PanelView" Grid.Row="1" Margin="0,8,0,0" Visibility="Collapsed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="6" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0">
+                <Grid Grid.Row="0" Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="8" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Button
-                        Style="{StaticResource HeaderIconButton}"
-                        Click="ClosePanel_Click"
-                        ToolTipService.ToolTip="Voltar">
-                        <FontIcon FontSize="11" Glyph="&#xE72B;" />
-                    </Button>
-                    <TextBlock x:Name="PanelTitleText" Grid.Column="2" Style="{StaticResource PanelTitle}" Text="PAINEL" />
+                    <TextBlock x:Name="PanelTitleText" Style="{StaticResource MicroLabel}" Foreground="#B0FFFFFF" Text="VOZES" />
                     <Button
                         x:Name="PanelActionButton"
-                        Grid.Column="3"
-                        Style="{StaticResource CompactButton}"
+                        Grid.Column="1"
+                        Margin="0,0,6,0"
+                        Style="{StaticResource AccentButton}"
                         Click="PanelAction_Click"
                         Visibility="Collapsed">
-                        <TextBlock x:Name="PanelActionText" FontSize="9" FontWeight="SemiBold" Text="AÇÃO" />
+                        <StackPanel Orientation="Horizontal">
+                            <FontIcon Margin="0,0,5,0" FontSize="10" Glyph="&#xE8D4;" />
+                            <TextBlock x:Name="PanelActionText" VerticalAlignment="Center" FontSize="9" FontWeight="SemiBold" Text="CLONAR VOZ" />
+                        </StackPanel>
+                    </Button>
+                    <Button
+                        Grid.Column="2"
+                        Style="{StaticResource HeaderIconButton}"
+                        Click="ClosePanel_Click"
+                        ToolTipService.ToolTip="Voltar ao chat">
+                        <FontIcon FontSize="10" Glyph="&#xE711;" />
                     </Button>
                 </Grid>
 
-                <ScrollViewer
-                    Grid.Row="2"
-                    HorizontalScrollMode="Disabled"
-                    VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Row="1" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
                     <Grid>
-                        <!-- History -->
-                        <StackPanel x:Name="HistoryPanel" Spacing="4" Visibility="Collapsed">
-                            <TextBlock
-                                x:Name="HistoryEmptyText"
-                                Style="{StaticResource SmallLabel}"
-                                Text="Nenhuma frase falada ainda." />
-                            <ItemsControl x:Name="HistoryList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Button
-                                            Margin="0,0,0,4"
-                                            Padding="9,5"
-                                            HorizontalAlignment="Stretch"
-                                            HorizontalContentAlignment="Stretch"
-                                            Background="#0DFFFFFF"
-                                            BorderThickness="0"
-                                            CornerRadius="9"
-                                            Click="HistoryItem_Click"
-                                            Tag="{Binding}">
-                                            <TextBlock FontSize="10.5" Foreground="#C8FFFFFF" MaxLines="2" Text="{Binding}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-
                         <!-- Voices -->
                         <StackPanel x:Name="VoicesPanel" Spacing="4" Visibility="Collapsed">
                             <TextBlock
-                                x:Name="VoicesEmptyText"
+                                x:Name="VoicesHintText"
                                 Style="{StaticResource SmallLabel}"
-                                Text="Nenhuma voz clonada. Use CLONAR na tela principal." />
+                                Margin="2,0,0,4"
+                                Text="Selecione a voz usada no chat. Use apenas vozes com autorização do titular." />
                             <ItemsControl x:Name="VoicesList">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border
                                             Margin="0,0,0,4"
-                                            Padding="9,5"
+                                            Padding="0"
                                             Background="#0DFFFFFF"
-                                            CornerRadius="9">
+                                            BorderBrush="{Binding BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="Auto" />
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
-                                                <StackPanel>
-                                                    <TextBlock FontSize="10.5" Foreground="#E0FFFFFF" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock FontSize="9" Foreground="#80FFFFFF" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
-                                                </StackPanel>
+                                                <Button
+                                                    Padding="10,6"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Click="SelectVoice_Click"
+                                                    Tag="{Binding}">
+                                                    <StackPanel Spacing="1">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <FontIcon FontSize="10" Foreground="{Binding CheckBrush}" Glyph="&#xE73E;" />
+                                                            <TextBlock FontSize="11" Foreground="#E6FFFFFF" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock FontSize="9" Foreground="#78FFFFFF" Text="{Binding Summary}" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                </Button>
                                                 <Button
                                                     Grid.Column="1"
                                                     Width="26"
                                                     Height="24"
-                                                    Margin="6,0,0,0"
+                                                    Margin="0,0,2,0"
                                                     Padding="0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
                                                     Click="RenameVoice_Click"
                                                     Tag="{Binding}"
+                                                    Visibility="{Binding ManageVisibility}"
                                                     ToolTipService.ToolTip="Renomear">
-                                                    <FontIcon FontSize="10" Glyph="&#xE70F;" />
+                                                    <FontIcon FontSize="10" Foreground="#9CFFFFFF" Glyph="&#xE70F;" />
                                                 </Button>
                                                 <Button
                                                     Grid.Column="2"
                                                     Width="26"
                                                     Height="24"
-                                                    Margin="4,0,0,0"
+                                                    Margin="0,0,4,0"
                                                     Padding="0"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
                                                     Click="DeleteVoice_Click"
                                                     Tag="{Binding}"
+                                                    Visibility="{Binding ManageVisibility}"
                                                     ToolTipService.ToolTip="Excluir">
                                                     <FontIcon FontSize="10" Foreground="#FFFF9AA2" Glyph="&#xE74D;" />
                                                 </Button>
@@ -539,11 +343,11 @@
                             </ItemsControl>
                         </StackPanel>
 
-                        <!-- Settings -->
-                        <StackPanel x:Name="SettingsPanel" Spacing="6" Visibility="Collapsed">
+                        <!-- Settings + diagnostics -->
+                        <StackPanel x:Name="SettingsPanel" Spacing="7" Visibility="Collapsed">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="104" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource SmallLabel}" Text="Processamento" />
@@ -557,7 +361,7 @@
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="104" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource SmallLabel}" Text="Saída de áudio" />
@@ -571,50 +375,40 @@
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="104" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="40" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource SmallLabel}" Text="Velocidade" />
-                                <Slider
-                                    x:Name="SpeedSlider"
-                                    Grid.Column="1"
-                                    Margin="0,-4,8,0"
-                                    ValueChanged="SpeedSlider_ValueChanged" />
+                                <Slider x:Name="SpeedSlider" Grid.Column="1" Margin="0,-4,8,0" ValueChanged="SpeedSlider_ValueChanged" />
                                 <TextBlock x:Name="SpeedValueText" Grid.Column="2" Style="{StaticResource SmallLabel}" Text="1,00×" />
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="110" />
+                                    <ColumnDefinition Width="104" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="36" />
+                                    <ColumnDefinition Width="40" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Style="{StaticResource SmallLabel}" Text="Volume" />
-                                <Slider
-                                    x:Name="VolumeSlider"
-                                    Grid.Column="1"
-                                    Margin="0,-4,8,0"
-                                    ValueChanged="VolumeSlider_ValueChanged" />
+                                <Slider x:Name="VolumeSlider" Grid.Column="1" Margin="0,-4,8,0" ValueChanged="VolumeSlider_ValueChanged" />
                                 <TextBlock x:Name="VolumeValueText" Grid.Column="2" Style="{StaticResource SmallLabel}" Text="100%" />
                             </Grid>
-                            <Border Padding="9,6" Background="#0DFFFFFF" CornerRadius="9">
+                            <Border Padding="10,7" Background="#0DFFFFFF" CornerRadius="10">
                                 <StackPanel Spacing="2">
-                                    <TextBlock Style="{StaticResource BodyText}" FontWeight="SemiBold" Text="Usar no Discord" />
-                                    <TextBlock Style="{StaticResource SmallLabel}" Text="A voz é enviada para CABLE Input. No Discord, em Configurações › Voz e vídeo, escolha CABLE Output como microfone. Ative ECO para ouvir a fala nos seus fones." />
+                                    <TextBlock Style="{StaticResource BodyText}" FontWeight="SemiBold" Text="Discord" />
+                                    <TextBlock x:Name="OutputSummaryText" Style="{StaticResource SmallLabel}" Text="A voz é enviada para CABLE Input. No Discord, em Configurações › Voz e vídeo, escolha CABLE Output como microfone. Eco (alto-falante no cabeçalho) reproduz a fala também nos seus fones." />
                                     <TextBlock Style="{StaticResource SmallLabel}" Text="VB-CABLE é um donationware da VB-Audio Software (vb-cable.com)." />
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
 
-                        <!-- Diagnostics -->
-                        <StackPanel x:Name="DiagnosticsPanel" Spacing="5" Visibility="Collapsed">
-                            <TextBlock x:Name="DiagnosticsSummary" Style="{StaticResource BodyText}" Text="Consultando o mecanismo XTTS…" />
+                            <TextBlock Style="{StaticResource MicroLabel}" Margin="2,6,0,0" Text="DIAGNÓSTICO" />
+                            <TextBlock x:Name="DiagnosticsSummary" Style="{StaticResource BodyText}" Text="Abra Ajustes para consultar o mecanismo XTTS." />
                             <ItemsControl x:Name="DiagnosticsList">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="0,0,0,2">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="128" />
+                                                <ColumnDefinition Width="118" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock FontSize="9.5" Foreground="#80FFFFFF" Text="{Binding Label}" TextWrapping="Wrap" />
@@ -624,21 +418,140 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <ComboBox x:Name="TestBackendBox" Height="28" MinWidth="120" FontSize="10" />
-                                <Button x:Name="TestBackendButton" Style="{StaticResource CompactButton}" Click="TestBackend_Click">
-                                    <TextBlock FontSize="9" FontWeight="SemiBold" Text="TESTAR BACKEND" />
-                                </Button>
-                                <Button x:Name="RestartServiceButton" Style="{StaticResource CompactButton}" Click="RestartService_Click">
-                                    <TextBlock FontSize="9" FontWeight="SemiBold" Text="RECONECTAR" />
-                                </Button>
-                                <Button x:Name="EnsureModelButton" Style="{StaticResource CompactButton}" Click="EnsureModel_Click">
-                                    <TextBlock FontSize="9" FontWeight="SemiBold" Text="VERIFICAR MODELO" />
-                                </Button>
+                                <ComboBox x:Name="TestBackendBox" Height="26" MinWidth="110" FontSize="10" />
+                                <Button x:Name="TestBackendButton" Style="{StaticResource CompactButton}" Click="TestBackend_Click" Content="TESTAR" />
+                                <Button x:Name="RestartServiceButton" Style="{StaticResource CompactButton}" Click="RestartService_Click" Content="RECONECTAR" />
+                                <Button x:Name="EnsureModelButton" Style="{StaticResource CompactButton}" Click="EnsureModel_Click" Content="MODELO" />
                             </StackPanel>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
             </Grid>
+
+            <!-- Progress / error strip above the composer -->
+            <StackPanel Grid.Row="2" Margin="0,6,0,0" Spacing="4">
+                <ProgressBar
+                    x:Name="JobProgress"
+                    Height="2"
+                    Foreground="#FFBFA6FF"
+                    Background="Transparent"
+                    IsIndeterminate="True"
+                    Visibility="Collapsed" />
+                <TextBlock
+                    x:Name="JobMessage"
+                    FontSize="9.5"
+                    Foreground="#9FBFA6FF"
+                    TextTrimming="CharacterEllipsis"
+                    Visibility="Collapsed" />
+                <Border
+                    x:Name="ErrorPanel"
+                    Padding="9,5"
+                    Background="#22FF7C87"
+                    BorderBrush="#33FF7C87"
+                    BorderThickness="1"
+                    CornerRadius="9"
+                    Visibility="Collapsed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="1">
+                            <TextBlock x:Name="ErrorText" FontSize="10" Foreground="#FFFFB3B9" MaxLines="2" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
+                            <TextBlock x:Name="ErrorAction" FontSize="9.5" Foreground="#B8FFFFFF" MaxLines="2" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" Visibility="Collapsed" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="1"
+                            Width="20"
+                            Height="20"
+                            Margin="6,0,0,0"
+                            Padding="0"
+                            VerticalAlignment="Top"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="DismissError_Click">
+                            <FontIcon FontSize="8" Glyph="&#xE711;" />
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+
+            <!-- Composer -->
+            <Border
+                Grid.Row="3"
+                Height="44"
+                Margin="0,6,0,0"
+                Background="#38000000"
+                BorderBrush="#20FFFFFF"
+                BorderThickness="1"
+                CornerRadius="14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="42" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button
+                        x:Name="VoiceChip"
+                        Grid.Column="0"
+                        Height="26"
+                        MaxWidth="150"
+                        Margin="7,0,0,0"
+                        Padding="8,0"
+                        VerticalAlignment="Center"
+                        Background="#1A8BE9D2"
+                        BorderBrush="#2E8BE9D2"
+                        BorderThickness="1"
+                        CornerRadius="9"
+                        Click="VoiceChip_Click"
+                        ToolTipService.ToolTip="Voz atual — clique para trocar ou clonar">
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <FontIcon x:Name="VoiceChipIcon" FontSize="9" Foreground="#FF8BE9D2" Glyph="&#xE720;" />
+                            <TextBlock
+                                x:Name="VoiceChipText"
+                                VerticalAlignment="Center"
+                                FontSize="9.5"
+                                FontWeight="SemiBold"
+                                Foreground="#FF8BE9D2"
+                                TextTrimming="CharacterEllipsis"
+                                Text="VOZ" />
+                        </StackPanel>
+                    </Button>
+
+                    <TextBox
+                        x:Name="MessageBox"
+                        Grid.Column="1"
+                        Margin="4,2,2,2"
+                        Padding="8,8"
+                        VerticalContentAlignment="Center"
+                        AcceptsReturn="False"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        FontSize="13"
+                        KeyDown="Composer_KeyDown"
+                        MaxLength="1000"
+                        PlaceholderText="Escreva o que você quer dizer…"
+                        TextWrapping="NoWrap" />
+
+                    <Button
+                        x:Name="SpeakButton"
+                        Grid.Column="2"
+                        Width="32"
+                        Height="32"
+                        Margin="0,0,6,0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Background="#268BE9D2"
+                        BorderBrush="#408BE9D2"
+                        BorderThickness="1"
+                        Click="SpeakButton_Click"
+                        CornerRadius="10"
+                        ToolTipService.ToolTip="Falar (Enter) / Parar (Esc)">
+                        <FontIcon x:Name="SpeakIcon" FontSize="13" Foreground="#FF8BE9D2" Glyph="&#xE74A;" />
+                    </Button>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Page>

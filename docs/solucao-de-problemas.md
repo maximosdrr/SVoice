@@ -24,7 +24,7 @@ Logs úteis:
 
 ## `XTTS INDISPONÍVEL` no widget
 
-- Clique em **Diagnóstico › RECONECTAR**. O bridge reinicia o serviço.
+- Clique em **Ajustes › Diagnóstico › RECONECTAR**. O bridge reinicia o serviço.
 - Verifique `gamebar-bridge.log`: "O mecanismo XTTS do SVoice não está
   instalado" indica runtime ausente em `C:\Program Files\SVoice\runtime` —
   execute o instalador novamente.
@@ -33,14 +33,14 @@ Logs úteis:
 
 ## `MODELO AUSENTE`
 
-Abra **Diagnóstico › VERIFICAR MODELO** (download de 1,9 GB com verificação
+Abra **Ajustes › Diagnóstico › MODELO** (download de 1,9 GB com verificação
 SHA-256; pode ser retomado). Sem internet, copie a pasta `xtts_v2` oficial para
 `%ProgramData%\SVoice\models\tts\tts_models--multilingual--multi-dataset--xtts_v2`
 e repita a verificação. Arquivos corrompidos são detectados e baixados de novo.
 
 ## A GPU não é usada
 
-- O **Diagnóstico** mostra o backend ativo, o recomendado e o *motivo do
+- **Ajustes › Diagnóstico** mostra o backend ativo, o recomendado e o *motivo do
   fallback*. Use **TESTAR BACKEND** para repetir a validação.
 - NVIDIA: driver anterior ao 580 ou placa anterior a Turing → CPU. Atualize o
   driver e use **Reparar SVoice**; para trocar o pack instalado (`torch-cpu` →

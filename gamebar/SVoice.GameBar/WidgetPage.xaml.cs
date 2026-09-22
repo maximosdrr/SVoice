@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Gaming.XboxGameBar;
 using Windows.Devices.Enumeration;
+using Windows.Foundation;
 using Windows.Media.Core;
 using Windows.Media.Devices;
 using Windows.Media.Playback;
@@ -28,15 +28,20 @@ namespace SVoice.GameBar
 {
     public sealed partial class WidgetPage : Page
     {
-        private enum PanelKind { None, History, Voices, Settings, Diagnostics }
+        private enum PanelKind { None, Voices, Settings }
 
-        private const int MaxHistory = 8;
+        private const int MaxHistory = 12;
+        private const double CompactHeight = 118;
+        private const double DefaultExpandedHeight = 300;
         private const string EchoSettingKey = "echoEnabled";
         private const string VoiceSettingKey = "selectedVoiceProfileId";
         private const string SpeedSettingKey = "speechSpeed";
         private const string VolumeSettingKey = "volume";
         private const string OutputSettingKey = "outputDeviceId";
+        private const string CompactSettingKey = "compactMode";
+        private const string ExpandedHeightSettingKey = "expandedHeight";
         private const string HistoryFileName = "history.json";
+        private const string WindowsVoiceId = "";
 
         private static readonly Color Accent = Color.FromArgb(255, 139, 233, 210);
         private static readonly Color Warning = Color.FromArgb(255, 255, 199, 118);
@@ -59,12 +64,17 @@ namespace SVoice.GameBar
         private IReadOnlyList<ClonedVoiceProfile> _profiles = Array.Empty<ClonedVoiceProfile>();
         private XttsHealth? _lastHealth;
         private PanelKind _panel = PanelKind.None;
+        private string? _selectedProfileId;
+        private string _backendLabel = string.Empty;
         private bool _initialized;
         private bool _usingVirtualCable;
         private bool _echoEnabled;
         private bool _isGenerating;
         private bool _xttsAvailable;
         private bool _suppressSelectionEvents;
+        private bool _compact;
+        private bool _panelExpandedTemporarily;
+        private double _expandedHeight = DefaultExpandedHeight;
         private double _speed = 1.0;
         private double _volume = 1.0;
         private string? _outputDeviceId;
@@ -77,6 +87,7 @@ namespace SVoice.GameBar
             _echoPlayer.MediaFailed += EchoPlayer_MediaFailed;
             _jobTimer.Tick += JobTimer_Tick;
             _errorTimer.Tick += (_, _) => { _errorTimer.Stop(); ErrorPanel.Visibility = Visibility.Collapsed; };
+            ChatArea.SizeChanged += (_, _) => UpdateBubbleWidths();
         }
 
         // ------------------------------------------------------------- lifecycle
@@ -86,12 +97,23 @@ namespace SVoice.GameBar
             if (_widget != null)
             {
                 _widget.RequestedOpacityChanged -= Widget_RequestedOpacityChanged;
+                _widget.SettingsClicked -= Widget_SettingsClicked;
             }
 
             _widget = args.Parameter as XboxGameBarWidget;
             if (_widget != null)
             {
                 _widget.RequestedOpacityChanged += Widget_RequestedOpacityChanged;
+                try
+                {
+                    _widget.SettingsSupported = true;
+                    _widget.SettingsClicked += Widget_SettingsClicked;
+                }
+                catch (Exception exception)
+                {
+                    App.Log($"Widget settings hook unavailable: {exception.Message}");
+                }
+
                 ApplyRequestedOpacity();
             }
         }
@@ -111,6 +133,7 @@ namespace SVoice.GameBar
                 LoadSettings();
                 await LoadHistoryAsync();
                 await ConfigureAudioOutputAsync();
+                await ApplyCompactAsync(_compact, persist: false);
                 await RefreshXttsAsync();
                 await Ui(() => MessageBox.Focus(FocusState.Programmatic));
                 App.Log("WidgetPage initialized.");
@@ -138,6 +161,11 @@ namespace SVoice.GameBar
             _speed = values.TryGetValue(SpeedSettingKey, out var speed) && speed is double storedSpeed ? Math.Clamp(storedSpeed, 0.5, 1.5) : 1.0;
             _volume = values.TryGetValue(VolumeSettingKey, out var volume) && volume is double storedVolume ? Math.Clamp(storedVolume, 0, 1) : 1.0;
             _outputDeviceId = values.TryGetValue(OutputSettingKey, out var output) ? output as string : null;
+            _selectedProfileId = values.TryGetValue(VoiceSettingKey, out var voice) ? voice as string : null;
+            _compact = values.TryGetValue(CompactSettingKey, out var compact) && compact is bool storedCompact && storedCompact;
+            _expandedHeight = values.TryGetValue(ExpandedHeightSettingKey, out var height) && height is double storedHeight && storedHeight >= 200
+                ? storedHeight
+                : DefaultExpandedHeight;
             _player.Volume = _volume;
             _echoPlayer.Volume = _volume;
             _synthesizer.Options.SpeakingRate = _speed;
@@ -158,6 +186,8 @@ namespace SVoice.GameBar
             ComputeModeBox.Items.Add(new ComputeModeChoice("cuda", "NVIDIA CUDA"));
             ComputeModeBox.Items.Add(new ComputeModeChoice("directml", "AMD DirectML (experimental)"));
             ComputeModeBox.Items.Add(new ComputeModeChoice("cpu", "CPU"));
+            EchoButton.IsChecked = _echoEnabled;
+            UpdateEchoVisual();
         }
 
         private async Task LoadHistoryAsync()
@@ -165,15 +195,13 @@ namespace SVoice.GameBar
             try
             {
                 var path = Path.Combine(ApplicationData.Current.LocalFolder.Path, HistoryFileName);
-                if (!File.Exists(path))
+                if (File.Exists(path))
                 {
-                    return;
-                }
-
-                var items = JsonSerializer.Deserialize<List<string>>(await File.ReadAllTextAsync(path));
-                if (items != null)
-                {
-                    _history.AddRange(items.Where(item => !string.IsNullOrWhiteSpace(item)).Take(MaxHistory));
+                    var items = JsonSerializer.Deserialize<List<string>>(await File.ReadAllTextAsync(path));
+                    if (items != null)
+                    {
+                        _history.AddRange(items.Where(item => !string.IsNullOrWhiteSpace(item)).Take(MaxHistory));
+                    }
                 }
             }
             catch (Exception exception)
@@ -181,15 +209,14 @@ namespace SVoice.GameBar
                 App.Log($"History could not be loaded: {exception.Message}");
             }
 
-            await Ui(RenderHistory);
+            await Ui(RenderChat);
         }
 
         private void SaveHistory()
         {
             try
             {
-                var path = Path.Combine(ApplicationData.Current.LocalFolder.Path, HistoryFileName);
-                File.WriteAllText(path, JsonSerializer.Serialize(_history));
+                File.WriteAllText(Path.Combine(ApplicationData.Current.LocalFolder.Path, HistoryFileName), JsonSerializer.Serialize(_history));
             }
             catch (Exception exception)
             {
@@ -207,22 +234,130 @@ namespace SVoice.GameBar
             }
 
             SaveHistory();
-            RenderHistory();
+            RenderChat();
         }
 
-        private void RenderHistory()
+        // ------------------------------------------------------------------ chat
+
+        private void RenderChat()
         {
-            HistoryList.ItemsSource = null;
-            HistoryList.ItemsSource = _history.ToList();
-            HistoryEmptyText.Visibility = _history.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            if (_history.Count > 0)
+            ChatStack.Children.Clear();
+            ChatEmptyText.Visibility = _history.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            // Oldest first, newest at the bottom like a conversation.
+            foreach (var text in Enumerable.Reverse(_history))
             {
-                LastPhraseText.Text = _history[0];
-                LastPhrasePanel.Visibility = Visibility.Visible;
+                ChatStack.Children.Add(CreateBubble(text));
             }
-            else
+
+            UpdateBubbleWidths();
+            ChatScroll.UpdateLayout();
+            ChatScroll.ChangeView(null, ChatScroll.ScrollableHeight, null, disableAnimation: true);
+        }
+
+        private Button CreateBubble(string text)
+        {
+            var bubble = new Button
             {
-                LastPhrasePanel.Visibility = Visibility.Collapsed;
+                Tag = text,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(11, 6, 11, 7),
+                Background = new SolidColorBrush(Color.FromArgb(22, 255, 255, 255)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(24, 139, 233, 210)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12, 12, 3, 12),
+                Content = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 11.5,
+                    Foreground = new SolidColorBrush(Color.FromArgb(225, 255, 255, 255)),
+                    TextWrapping = TextWrapping.Wrap,
+                },
+            };
+            ToolTipService.SetToolTip(bubble, "Repetir esta frase");
+            bubble.Click += HistoryItem_Click;
+            return bubble;
+        }
+
+        private void UpdateBubbleWidths()
+        {
+            var width = ChatArea.ActualWidth;
+            if (width <= 0)
+            {
+                return;
+            }
+
+            foreach (var child in ChatStack.Children.OfType<Button>())
+            {
+                child.MaxWidth = Math.Max(120, width * 0.8);
+            }
+        }
+
+        private async void HistoryItem_Click(object sender, RoutedEventArgs args)
+        {
+            if ((sender as FrameworkElement)?.Tag is string text)
+            {
+                await SpeakAsync(text);
+            }
+        }
+
+        // --------------------------------------------------------------- compact
+
+        private async void CompactButton_Click(object sender, RoutedEventArgs args)
+        {
+            await ApplyCompactAsync(!_compact, persist: true);
+        }
+
+        private async Task ApplyCompactAsync(bool compact, bool persist)
+        {
+            if (compact && !_compact)
+            {
+                var current = Window.Current?.Bounds.Height ?? 0;
+                if (current >= 200)
+                {
+                    _expandedHeight = current;
+                    ApplicationData.Current.LocalSettings.Values[ExpandedHeightSettingKey] = _expandedHeight;
+                }
+            }
+
+            _compact = compact;
+            if (persist)
+            {
+                ApplicationData.Current.LocalSettings.Values[CompactSettingKey] = compact;
+            }
+
+            if (compact && _panel != PanelKind.None)
+            {
+                ShowPanel(PanelKind.None);
+            }
+
+            ChatArea.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+            ContentRow.Height = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+            CompactIcon.Glyph = compact ? "" : "";
+            ToolTipService.SetToolTip(CompactButton, compact ? "Mostrar o histórico" : "Modo compacto: esconder o histórico");
+            await ResizeWindowAsync(compact ? CompactHeight : _expandedHeight);
+        }
+
+        private async Task ResizeWindowAsync(double height)
+        {
+            if (_widget == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var width = Window.Current?.Bounds.Width ?? 0;
+                if (width < 200)
+                {
+                    width = 500;
+                }
+
+                await _widget.TryResizeWindowAsync(new Size(width, height));
+            }
+            catch (Exception exception)
+            {
+                App.Log($"Window resize failed: {exception.Message}");
             }
         }
 
@@ -289,30 +424,18 @@ namespace SVoice.GameBar
         {
             _player.AudioDevice = device;
             _usingVirtualCable = choice.IsVirtualCable && device != null;
-            if (_usingVirtualCable)
+            EchoButton.IsEnabled = _usingVirtualCable;
+            if (!_usingVirtualCable)
             {
-                OutputText.Text = "CABLE INPUT";
-                OutputIcon.Foreground = new SolidColorBrush(Accent);
-                EchoButton.IsEnabled = true;
-                EchoButton.IsChecked = _echoEnabled;
-                HintText.Text = "Enter: falar  •  Esc: parar  •  Discord: CABLE Output";
-            }
-            else
-            {
-                OutputText.Text = choice.Id == null ? "SAÍDA PADRÃO" : Shorten(choice.Label, 18).ToUpperInvariant();
-                OutputIcon.Foreground = new SolidColorBrush(Warning);
-                EchoButton.IsEnabled = false;
-                EchoButton.IsChecked = false;
                 StopEchoPlayback();
-                HintText.Text = _outputDevices.Any(item => item.IsVirtualCable)
-                    ? "Enter: falar  •  Esc: parar"
-                    : "VB-CABLE não encontrado: execute o reparo do SVoice";
             }
-        }
 
-        private static string Shorten(string value, int max)
-        {
-            return value.Length <= max ? value : value.Substring(0, max - 1) + "…";
+            UpdateEchoVisual();
+            OutputSummaryText.Text = _usingVirtualCable
+                ? "A voz é enviada para CABLE Input. No Discord, em Configurações › Voz e vídeo, escolha CABLE Output como microfone. Eco (alto-falante no cabeçalho) reproduz a fala também nos seus fones."
+                : _outputDevices.Any(item => item.IsVirtualCable)
+                    ? $"Saída atual: {choice.Label}. Selecione CABLE Input para enviar a voz ao Discord."
+                    : "VB-CABLE não encontrado. Execute Iniciar › SVoice › Reparar SVoice para instalar o microfone virtual.";
         }
 
         private async void OutputDeviceBox_SelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -333,6 +456,8 @@ namespace SVoice.GameBar
             if (!_usingVirtualCable)
             {
                 EchoButton.IsChecked = false;
+                ShowError("O Eco só funciona com o VB-CABLE selecionado como saída.", "Abra Ajustes › Saída de áudio e escolha CABLE Input.");
+                UpdateEchoVisual();
                 return;
             }
 
@@ -342,6 +467,18 @@ namespace SVoice.GameBar
             {
                 StopEchoPlayback();
             }
+
+            UpdateEchoVisual();
+        }
+
+        private void UpdateEchoVisual()
+        {
+            var active = _echoEnabled && _usingVirtualCable;
+            EchoIcon.Foreground = new SolidColorBrush(active ? Accent : Color.FromArgb(_usingVirtualCable ? (byte)156 : (byte)70, 255, 255, 255));
+            EchoIcon.Glyph = active ? "" : "";
+            ToolTipService.SetToolTip(EchoButton, _usingVirtualCable
+                ? (active ? "Eco ligado: você ouve a fala nos seus fones" : "Eco desligado: ligar para ouvir a fala nos seus fones")
+                : "Eco requer o VB-CABLE como saída (Ajustes › Saída de áudio)");
         }
 
         private void SpeedSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs args)
@@ -375,11 +512,7 @@ namespace SVoice.GameBar
 
         private async Task RefreshXttsAsync(string? preferredProfileId = null)
         {
-            await Ui(() =>
-            {
-                RefreshVoicesButton.IsEnabled = false;
-                SetState("CONECTANDO XTTS", Working);
-            });
+            await Ui(() => SetState("CONECTANDO", Working));
 
             XttsHealth? health = null;
             IReadOnlyList<ClonedVoiceProfile> profiles = Array.Empty<ClonedVoiceProfile>();
@@ -401,48 +534,68 @@ namespace SVoice.GameBar
             if (health != null)
             {
                 _profiles = profiles;
+                _backendLabel = ShortBackend(health.ActiveBackend) ?? ShortBackend(health.ComputeMode == "auto" ? null : health.ComputeMode) ?? string.Empty;
+            }
+
+            if (preferredProfileId != null)
+            {
+                _selectedProfileId = preferredProfileId;
+                ApplicationData.Current.LocalSettings.Values[VoiceSettingKey] = preferredProfileId;
             }
 
             await Ui(() =>
             {
-                PopulateVoiceChoices(preferredProfileId);
+                EnsureSelectedVoice();
+                RenderVoiceChip();
                 RenderVoicesPanel();
                 ApplyHealth(health, failure);
-                RefreshVoicesButton.IsEnabled = true;
             });
         }
 
-        private void PopulateVoiceChoices(string? preferredProfileId)
+        private static string? ShortBackend(string? backend)
         {
-            var savedProfileId = preferredProfileId ?? ApplicationData.Current.LocalSettings.Values[VoiceSettingKey] as string;
-            _suppressSelectionEvents = true;
-            VoiceBox.Items.Clear();
-            foreach (var profile in _profiles)
+            return backend switch
             {
-                var usable = _xttsAvailable && profile.IsUsable;
-                var suffix = profile.IsUsable ? "Clonada" : "sem áudio (!)";
-                VoiceBox.Items.Add(new VoiceChoice($"{profile.Name}  ·  {suffix}", profile.Id, usable));
+                "cuda" => "CUDA",
+                "directml" => "DIRECTML",
+                "rocm" => "ROCM",
+                "cpu" => "CPU",
+                _ => null,
+            };
+        }
+
+        private ClonedVoiceProfile? SelectedProfile =>
+            string.IsNullOrEmpty(_selectedProfileId) ? null : _profiles.FirstOrDefault(profile => profile.Id == _selectedProfileId);
+
+        private bool IsWindowsVoiceSelected => _selectedProfileId == WindowsVoiceId;
+
+        private void EnsureSelectedVoice()
+        {
+            if (_selectedProfileId == WindowsVoiceId || SelectedProfile != null)
+            {
+                return;
             }
 
-            VoiceBox.Items.Add(new VoiceChoice("Voz do Windows (sem XTTS)"));
+            // Prefer a usable cloned voice; the Windows voice is an explicit choice, never a silent fallback
+            // unless there is no cloned voice at all.
+            var candidate = _profiles.FirstOrDefault(profile => profile.IsUsable) ?? _profiles.FirstOrDefault();
+            _selectedProfileId = candidate?.Id ?? WindowsVoiceId;
+            ApplicationData.Current.LocalSettings.Values[VoiceSettingKey] = _selectedProfileId;
+        }
 
-            VoiceChoice? selection = null;
-            if (!string.IsNullOrWhiteSpace(savedProfileId))
+        private void RenderVoiceChip()
+        {
+            var profile = SelectedProfile;
+            if (IsWindowsVoiceSelected || profile == null)
             {
-                selection = VoiceBox.Items.OfType<VoiceChoice>().FirstOrDefault(choice => choice.ProfileId == savedProfileId);
+                VoiceChipText.Text = "Voz do Windows";
+                VoiceChipIcon.Glyph = "";
             }
-
-            selection ??= VoiceBox.Items.OfType<VoiceChoice>().FirstOrDefault(choice => choice.IsCloned && choice.Usable)
-                ?? VoiceBox.Items.OfType<VoiceChoice>().FirstOrDefault(choice => choice.IsCloned)
-                ?? VoiceBox.Items.OfType<VoiceChoice>().First();
-            VoiceBox.SelectedItem = selection;
-            _suppressSelectionEvents = false;
-
-            ToolTipService.SetToolTip(
-                VoiceBox,
-                _profiles.Count == 0
-                    ? "Nenhuma voz clonada ainda. Use CLONAR para criar uma."
-                    : "Selecione uma voz clonada pelo XTTS ou a voz do Windows.");
+            else
+            {
+                VoiceChipText.Text = profile.Name;
+                VoiceChipIcon.Glyph = profile.IsUsable ? "" : "";
+            }
         }
 
         private void ApplyHealth(XttsHealth? health, Exception? failure)
@@ -450,11 +603,9 @@ namespace SVoice.GameBar
             if (health == null)
             {
                 SetState("XTTS INDISPONÍVEL", Danger);
-                BackendBadge.Text = string.Empty;
                 if (failure != null)
                 {
-                    var bridgeError = failure as XttsBridgeException;
-                    ShowError(failure.Message, bridgeError?.Action ?? "Use RECONECTAR no diagnóstico ou execute o reparo do SVoice.");
+                    ShowError(failure.Message, (failure as XttsBridgeException)?.Action ?? "Use RECONECTAR em Ajustes ou execute o reparo do SVoice.");
                 }
 
                 return;
@@ -463,26 +614,12 @@ namespace SVoice.GameBar
             if (!health.ModelReady)
             {
                 SetState("MODELO AUSENTE", Warning);
-                BackendBadge.Text = string.Empty;
-                ShowError("O modelo XTTS v2 ainda não foi baixado.", "Abra o diagnóstico e use VERIFICAR MODELO para baixá-lo.");
+                ShowError("O modelo XTTS v2 ainda não foi baixado.", "Abra Ajustes › Diagnóstico e use MODELO para baixá-lo.");
                 return;
             }
 
             SetReadyState();
-            BackendBadge.Text = health.ActiveBackendLabel ?? ComputeModeLabel(health.ComputeMode);
             SyncComputeModeBox(health.ComputeMode);
-        }
-
-        private static string ComputeModeLabel(string mode)
-        {
-            return mode switch
-            {
-                "cuda" => "NVIDIA CUDA",
-                "directml" => "AMD DirectML",
-                "rocm" => "AMD ROCm",
-                "cpu" => "CPU",
-                _ => "Auto",
-            };
         }
 
         private void SyncComputeModeBox(string mode)
@@ -491,24 +628,6 @@ namespace SVoice.GameBar
             ComputeModeBox.SelectedItem = ComputeModeBox.Items.OfType<ComputeModeChoice>().FirstOrDefault(choice => choice.WireName == mode)
                 ?? ComputeModeBox.Items.OfType<ComputeModeChoice>().First();
             _suppressSelectionEvents = false;
-        }
-
-        private async void RefreshVoicesButton_Click(object sender, RoutedEventArgs args)
-        {
-            await RefreshXttsAsync();
-        }
-
-        private void VoiceBox_SelectionChanged(object sender, SelectionChangedEventArgs args)
-        {
-            if (_suppressSelectionEvents)
-            {
-                return;
-            }
-
-            if (VoiceBox.SelectedItem is VoiceChoice choice)
-            {
-                ApplicationData.Current.LocalSettings.Values[VoiceSettingKey] = choice.ProfileId ?? string.Empty;
-            }
         }
 
         private async void ComputeModeBox_SelectionChanged(object sender, SelectionChangedEventArgs args)
@@ -527,22 +646,65 @@ namespace SVoice.GameBar
 
             try
             {
-                SetState("REINICIANDO XTTS", Working);
+                SetState("REINICIANDO", Working);
                 using var response = await _xttsBridge.SetComputeModeAsync(choice.WireName);
                 App.Log($"Compute mode set to {choice.WireName}.");
-                await RefreshXttsAsync();
             }
             catch (Exception exception)
             {
                 App.Log($"Compute mode change failed: {exception}");
                 await Ui(() => ShowError(exception));
-                await RefreshXttsAsync();
+            }
+
+            await RefreshXttsAsync();
+            if (_panel == PanelKind.Settings)
+            {
+                await LoadDiagnosticsAsync();
             }
         }
 
-        // ------------------------------------------------------------- cloning
+        // ---------------------------------------------------------------- voices
 
-        private async void CloneVoiceButton_Click(object sender, RoutedEventArgs args)
+        private void VoiceChip_Click(object sender, RoutedEventArgs args) => TogglePanel(PanelKind.Voices);
+
+        private void RenderVoicesPanel()
+        {
+            var items = new List<VoiceItem>();
+            foreach (var profile in _profiles)
+            {
+                items.Add(new VoiceItem(profile, profile.Id == _selectedProfileId));
+            }
+
+            items.Add(new VoiceItem(null, IsWindowsVoiceSelected));
+            VoicesList.ItemsSource = items;
+            VoicesHintText.Text = _profiles.Count == 0
+                ? "Nenhuma voz clonada ainda. Use CLONAR VOZ com áudios limpos de uma única pessoa (10 s a 30 min). Use apenas vozes com autorização do titular."
+                : "Clique para selecionar a voz usada no chat. Use apenas vozes com autorização do titular.";
+        }
+
+        private void SelectVoice_Click(object sender, RoutedEventArgs args)
+        {
+            if ((sender as FrameworkElement)?.Tag is not VoiceItem item)
+            {
+                return;
+            }
+
+            _selectedProfileId = item.Profile?.Id ?? WindowsVoiceId;
+            ApplicationData.Current.LocalSettings.Values[VoiceSettingKey] = _selectedProfileId;
+            RenderVoiceChip();
+            RenderVoicesPanel();
+            ShowPanel(PanelKind.None);
+        }
+
+        private async void PanelAction_Click(object sender, RoutedEventArgs args)
+        {
+            if (_panel == PanelKind.Voices)
+            {
+                await CloneVoiceAsync();
+            }
+        }
+
+        private async Task CloneVoiceAsync()
         {
             if (_isGenerating)
             {
@@ -590,7 +752,7 @@ namespace SVoice.GameBar
                     var content = new StackPanel { Spacing = 10 };
                     content.Children.Add(new TextBlock
                     {
-                        Text = $"{files.Count} áudio(s) selecionado(s). Use gravações limpas da mesma pessoa; de 10 segundos a 30 minutos no total. Use apenas vozes com autorização do titular.",
+                        Text = $"{files.Count} áudio(s) selecionado(s). Use gravações limpas da mesma pessoa; de 10 segundos a 30 minutos no total.",
                         TextWrapping = TextWrapping.Wrap,
                     });
                     content.Children.Add(nameBox);
@@ -611,9 +773,9 @@ namespace SVoice.GameBar
 
                 await Ui(() =>
                 {
-                    BeginJob("CLONANDO VOZ", "Preparando os áudios de referência…");
-                    CloneVoiceButton.IsEnabled = false;
-                    RefreshVoicesButton.IsEnabled = false;
+                    _isGenerating = true;
+                    PanelActionButton.IsEnabled = false;
+                    BeginJob("CLONANDO", "Preparando os áudios de referência…");
                 });
 
                 IReadOnlyList<string> referencePaths = files.Select(file => file.Path).ToArray();
@@ -635,9 +797,84 @@ namespace SVoice.GameBar
             {
                 await Ui(() =>
                 {
-                    CloneVoiceButton.IsEnabled = true;
-                    RefreshVoicesButton.IsEnabled = true;
+                    _isGenerating = false;
+                    PanelActionButton.IsEnabled = true;
                 });
+            }
+        }
+
+        private async void RenameVoice_Click(object sender, RoutedEventArgs args)
+        {
+            if ((sender as FrameworkElement)?.Tag is not VoiceItem { Profile: { } profile } || _isGenerating)
+            {
+                return;
+            }
+
+            try
+            {
+                var nameBox = new TextBox { Header = "Novo nome", MaxLength = 80, Text = profile.Name };
+                var dialog = new ContentDialog
+                {
+                    Title = "Renomear voz",
+                    Content = nameBox,
+                    PrimaryButtonText = "Salvar",
+                    CloseButtonText = "Cancelar",
+                    DefaultButton = ContentDialogButton.Primary,
+                };
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary || string.IsNullOrWhiteSpace(nameBox.Text))
+                {
+                    return;
+                }
+
+                await _xttsBridge.RenameProfileAsync(profile.Id, nameBox.Text.Trim());
+                await RefreshXttsAsync();
+            }
+            catch (Exception exception)
+            {
+                App.Log($"Rename failed: {exception}");
+                await Ui(() => ShowError(exception));
+            }
+        }
+
+        private async void DeleteVoice_Click(object sender, RoutedEventArgs args)
+        {
+            if ((sender as FrameworkElement)?.Tag is not VoiceItem { Profile: { } profile } || _isGenerating)
+            {
+                return;
+            }
+
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Excluir voz clonada?",
+                    Content = new TextBlock
+                    {
+                        Text = $"A voz “{profile.Name}” e os áudios de referência processados serão removidos. Esta ação não pode ser desfeita.",
+                        TextWrapping = TextWrapping.Wrap,
+                    },
+                    PrimaryButtonText = "Excluir",
+                    CloseButtonText = "Cancelar",
+                    DefaultButton = ContentDialogButton.Close,
+                };
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+                {
+                    return;
+                }
+
+                await _xttsBridge.DeleteProfileAsync(profile.Id);
+                App.Log($"XTTS profile deleted: {profile.Id}.");
+                if (_selectedProfileId == profile.Id)
+                {
+                    _selectedProfileId = null;
+                }
+
+                await RefreshXttsAsync();
+            }
+            catch (Exception exception)
+            {
+                App.Log($"Delete failed: {exception}");
+                await Ui(() => ShowError(exception));
             }
         }
 
@@ -665,23 +902,6 @@ namespace SVoice.GameBar
             {
                 args.Handled = true;
                 await StopAsync();
-            }
-        }
-
-        private async void RepeatLastButton_Click(object sender, RoutedEventArgs args)
-        {
-            if (_history.Count > 0)
-            {
-                await SpeakAsync(_history[0]);
-            }
-        }
-
-        private async void HistoryItem_Click(object sender, RoutedEventArgs args)
-        {
-            if ((sender as FrameworkElement)?.Tag is string text)
-            {
-                ShowPanel(PanelKind.None);
-                await SpeakAsync(text);
             }
         }
 
@@ -713,18 +933,26 @@ namespace SVoice.GameBar
                 return;
             }
 
-            var choice = VoiceBox.SelectedItem as VoiceChoice;
-            if (choice == null)
+            var profile = SelectedProfile;
+            var useWindowsVoice = IsWindowsVoiceSelected;
+            if (!useWindowsVoice && profile == null)
             {
+                ShowError(_xttsAvailable ? "Selecione uma voz clonada em Vozes." : "O mecanismo XTTS não está disponível.",
+                    _xttsAvailable ? "Toque no chip de voz ao lado do campo de texto." : "Use RECONECTAR em Ajustes › Diagnóstico.");
                 return;
             }
 
-            if (choice.IsCloned && !choice.Usable)
+            if (!useWindowsVoice && (!profile!.IsUsable || !_xttsAvailable))
             {
                 ShowError(
                     _xttsAvailable ? "Este perfil está sem o áudio de referência." : "O mecanismo XTTS não está disponível.",
-                    _xttsAvailable ? "Exclua o perfil e crie-o novamente com o áudio original." : "Use RECONECTAR no diagnóstico.");
+                    _xttsAvailable ? "Exclua o perfil em Vozes e crie-o novamente com o áudio original." : "Use RECONECTAR em Ajustes › Diagnóstico.");
                 return;
+            }
+
+            if (_panel != PanelKind.None)
+            {
+                ShowPanel(PanelKind.None);
             }
 
             try
@@ -735,21 +963,30 @@ namespace SVoice.GameBar
                 StartSpeechActivity();
                 AddToHistory(text);
                 SpeakIcon.Glyph = "";
+                MessageBox.Text = string.Empty;
 
                 string contentType;
-                if (choice.IsCloned)
+                if (!useWindowsVoice)
                 {
-                    BeginJob("GERANDO XTTS", "Preparando a voz clonada…");
-                    App.Log($"XTTS synthesis requested. Profile={choice.ProfileId}; Characters={text.Length}.");
-                    var result = await _xttsBridge.SynthesizeAsync(text, choice.ProfileId!, _speed);
+                    BeginJob("GERANDO", "Preparando a voz clonada…");
+                    App.Log($"XTTS synthesis requested. Profile={profile!.Id}; Characters={text.Length}.");
+                    var result = await _xttsBridge.SynthesizeAsync(text, profile.Id, _speed);
                     _currentStream = await CreateAudioStreamAsync(result.Bytes);
                     contentType = result.ContentType;
                     await Ui(() =>
                     {
                         EndJob();
-                        if (!string.IsNullOrWhiteSpace(result.BackendLabel))
+                        var label = ShortBackend(result.BackendLabel?.ToLowerInvariant() switch
                         {
-                            BackendBadge.Text = result.BackendLabel;
+                            "nvidia cuda" => "cuda",
+                            "amd directml" => "directml",
+                            "amd rocm" => "rocm",
+                            "cpu" => "cpu",
+                            _ => null,
+                        });
+                        if (label != null)
+                        {
+                            _backendLabel = label;
                         }
                     });
                 }
@@ -777,7 +1014,6 @@ namespace SVoice.GameBar
                         _echoPlayer.Play();
                     }
 
-                    MessageBox.Text = string.Empty;
                     MessageBox.Focus(FocusState.Programmatic);
                 });
             }
@@ -893,7 +1129,7 @@ namespace SVoice.GameBar
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
                 StopPlayback();
-                ShowError($"Não foi possível reproduzir o áudio: {args.ErrorMessage}", "Verifique o dispositivo de saída em Ajustes.");
+                ShowError($"Não foi possível reproduzir o áudio: {args.ErrorMessage}", "Verifique a saída de áudio em Ajustes.");
             });
         }
 
@@ -905,6 +1141,7 @@ namespace SVoice.GameBar
                 _echoEnabled = false;
                 EchoButton.IsChecked = false;
                 ApplicationData.Current.LocalSettings.Values[EchoSettingKey] = false;
+                UpdateEchoVisual();
             });
         }
 
@@ -964,140 +1201,60 @@ namespace SVoice.GameBar
 
         // ---------------------------------------------------------------- panels
 
-        private void HistoryButton_Click(object sender, RoutedEventArgs args) => TogglePanel(PanelKind.History);
-
         private void VoicesButton_Click(object sender, RoutedEventArgs args) => TogglePanel(PanelKind.Voices);
 
         private void SettingsButton_Click(object sender, RoutedEventArgs args) => TogglePanel(PanelKind.Settings);
 
-        private async void DiagnosticsButton_Click(object sender, RoutedEventArgs args)
+        private async void Widget_SettingsClicked(XboxGameBarWidget sender, object args)
         {
-            TogglePanel(PanelKind.Diagnostics);
-            if (_panel == PanelKind.Diagnostics)
-            {
-                await LoadDiagnosticsAsync();
-            }
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => ShowPanel(PanelKind.Settings));
         }
 
         private void ClosePanel_Click(object sender, RoutedEventArgs args) => ShowPanel(PanelKind.None);
 
         private void TogglePanel(PanelKind kind) => ShowPanel(_panel == kind ? PanelKind.None : kind);
 
-        private void ShowPanel(PanelKind kind)
+        private async void ShowPanel(PanelKind kind)
         {
             _panel = kind;
-            MainView.Visibility = kind == PanelKind.None ? Visibility.Visible : Visibility.Collapsed;
-            PanelView.Visibility = kind == PanelKind.None ? Visibility.Collapsed : Visibility.Visible;
-            HistoryPanel.Visibility = kind == PanelKind.History ? Visibility.Visible : Visibility.Collapsed;
+            var open = kind != PanelKind.None;
+            ChatArea.Visibility = open || _compact ? Visibility.Collapsed : Visibility.Visible;
+            PanelView.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
             VoicesPanel.Visibility = kind == PanelKind.Voices ? Visibility.Visible : Visibility.Collapsed;
             SettingsPanel.Visibility = kind == PanelKind.Settings ? Visibility.Visible : Visibility.Collapsed;
-            DiagnosticsPanel.Visibility = kind == PanelKind.Diagnostics ? Visibility.Visible : Visibility.Collapsed;
-            PanelActionButton.Visibility = kind == PanelKind.History || kind == PanelKind.Diagnostics ? Visibility.Visible : Visibility.Collapsed;
-            PanelActionText.Text = kind == PanelKind.History ? "LIMPAR" : "ATUALIZAR";
+            PanelActionButton.Visibility = kind == PanelKind.Voices ? Visibility.Visible : Visibility.Collapsed;
             PanelTitleText.Text = kind switch
             {
-                PanelKind.History => "HISTÓRICO",
-                PanelKind.Voices => "VOZES CLONADAS",
+                PanelKind.Voices => "VOZES",
                 PanelKind.Settings => "AJUSTES",
-                PanelKind.Diagnostics => "DIAGNÓSTICO",
                 _ => string.Empty,
             };
-            if (kind == PanelKind.None)
-            {
-                MessageBox.Focus(FocusState.Programmatic);
-            }
-        }
 
-        private async void PanelAction_Click(object sender, RoutedEventArgs args)
-        {
-            if (_panel == PanelKind.History)
+            // Panels need room: temporarily leave compact mode while one is open.
+            if (open && _compact)
             {
-                _history.Clear();
-                SaveHistory();
-                RenderHistory();
+                _panelExpandedTemporarily = true;
+                ContentRow.Height = new GridLength(1, GridUnitType.Star);
+                await ResizeWindowAsync(_expandedHeight);
             }
-            else if (_panel == PanelKind.Diagnostics)
+            else if (!open && _panelExpandedTemporarily)
+            {
+                _panelExpandedTemporarily = false;
+                ContentRow.Height = new GridLength(0);
+                await ResizeWindowAsync(CompactHeight);
+            }
+
+            if (kind == PanelKind.Voices)
+            {
+                await RefreshXttsAsync();
+            }
+            else if (kind == PanelKind.Settings)
             {
                 await LoadDiagnosticsAsync();
             }
-        }
-
-        private void RenderVoicesPanel()
-        {
-            VoicesList.ItemsSource = null;
-            VoicesList.ItemsSource = _profiles.ToList();
-            VoicesEmptyText.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private async void RenameVoice_Click(object sender, RoutedEventArgs args)
-        {
-            if ((sender as FrameworkElement)?.Tag is not ClonedVoiceProfile profile || _isGenerating)
+            else
             {
-                return;
-            }
-
-            try
-            {
-                var nameBox = new TextBox { Header = "Novo nome", MaxLength = 80, Text = profile.Name };
-                var dialog = new ContentDialog
-                {
-                    Title = "Renomear voz",
-                    Content = nameBox,
-                    PrimaryButtonText = "Salvar",
-                    CloseButtonText = "Cancelar",
-                    DefaultButton = ContentDialogButton.Primary,
-                };
-                if (await dialog.ShowAsync() != ContentDialogResult.Primary || string.IsNullOrWhiteSpace(nameBox.Text))
-                {
-                    return;
-                }
-
-                await _xttsBridge.RenameProfileAsync(profile.Id, nameBox.Text.Trim());
-                await RefreshXttsAsync();
-                await Ui(() => ShowPanel(PanelKind.Voices));
-            }
-            catch (Exception exception)
-            {
-                App.Log($"Rename failed: {exception}");
-                await Ui(() => ShowError(exception));
-            }
-        }
-
-        private async void DeleteVoice_Click(object sender, RoutedEventArgs args)
-        {
-            if ((sender as FrameworkElement)?.Tag is not ClonedVoiceProfile profile || _isGenerating)
-            {
-                return;
-            }
-
-            try
-            {
-                var dialog = new ContentDialog
-                {
-                    Title = "Excluir voz clonada?",
-                    Content = new TextBlock
-                    {
-                        Text = $"A voz “{profile.Name}” e os áudios de referência processados serão removidos. Esta ação não pode ser desfeita.",
-                        TextWrapping = TextWrapping.Wrap,
-                    },
-                    PrimaryButtonText = "Excluir",
-                    CloseButtonText = "Cancelar",
-                    DefaultButton = ContentDialogButton.Close,
-                };
-                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-                {
-                    return;
-                }
-
-                await _xttsBridge.DeleteProfileAsync(profile.Id);
-                App.Log($"XTTS profile deleted: {profile.Id}.");
-                await RefreshXttsAsync();
-                await Ui(() => ShowPanel(PanelKind.Voices));
-            }
-            catch (Exception exception)
-            {
-                App.Log($"Delete failed: {exception}");
-                await Ui(() => ShowError(exception));
+                MessageBox.Focus(FocusState.Programmatic);
             }
         }
 
@@ -1149,16 +1306,14 @@ namespace SVoice.GameBar
                         var label = backend.Value.GetStringOrDefault("label", backend.Name);
                         var device = backend.Value.GetStringOrNull("device_name");
                         var reason = backend.Value.GetStringOrNull("reason");
-                        string validation = "não testado";
+                        var validation = "não testado";
                         if (engine.TryGetProperty("validations", out var validations) && validations.TryGetProperty(backend.Name, out var record))
                         {
                             var ok = record.TryGetProperty("ok", out var okValue) && okValue.ValueKind == JsonValueKind.True;
                             var seconds = record.TryGetProperty("test_synthesis_seconds", out var secondsValue) && secondsValue.ValueKind == JsonValueKind.Number
                                 ? $"{secondsValue.GetDouble():0.0} s"
                                 : null;
-                            validation = ok
-                                ? $"validado (síntese de teste em {seconds ?? "?"})"
-                                : $"falhou: {record.GetStringOrNull("reason")}";
+                            validation = ok ? $"validado (síntese de teste em {seconds ?? "?"})" : $"falhou: {record.GetStringOrNull("reason")}";
                         }
 
                         items.Add(new LabeledValue(label, available ? $"{device} · {validation}" : $"indisponível · {reason}"));
@@ -1170,7 +1325,7 @@ namespace SVoice.GameBar
                 }
 
                 var modelReady = modelInfo.ValueKind == JsonValueKind.Object && modelInfo.TryGetProperty("ready", out var readyValue) && readyValue.ValueKind == JsonValueKind.True;
-                items.Add(new LabeledValue("Modelo XTTS v2", modelReady ? "instalado e verificado" : "ausente ou incompleto — use VERIFICAR MODELO"));
+                items.Add(new LabeledValue("Modelo XTTS v2", modelReady ? "instalado e verificado" : "ausente ou incompleto — use MODELO"));
                 items.Add(new LabeledValue("Runtime", $"{runtime.GetStringOrNull("torch_pack") ?? "desenvolvimento"} · PyTorch {engine.GetStringOrNull("torch_version")}"));
                 items.Add(new LabeledValue("Serviço", $"v{root.GetStringOrNull("service_version")} · protocolo {root.GetProperty("protocol_version").GetInt32()} · Python {engine.GetStringOrNull("python")}"));
                 items.Add(new LabeledValue("Dados", root.GetStringOrNull("data_dir")));
@@ -1205,6 +1360,18 @@ namespace SVoice.GameBar
                     TestBackendButton.IsEnabled = false;
                 });
             }
+        }
+
+        private static string ComputeModeLabel(string mode)
+        {
+            return mode switch
+            {
+                "cuda" => "NVIDIA CUDA",
+                "directml" => "AMD DirectML",
+                "rocm" => "AMD ROCm",
+                "cpu" => "CPU",
+                _ => "Automático",
+            };
         }
 
         private async void TestBackend_Click(object sender, RoutedEventArgs args)
@@ -1254,7 +1421,7 @@ namespace SVoice.GameBar
 
             try
             {
-                SetState("REINICIANDO XTTS", Working);
+                SetState("REINICIANDO", Working);
                 DiagnosticsSummary.Text = "Reiniciando o mecanismo XTTS…";
                 using var response = await _xttsBridge.RestartServiceAsync();
             }
@@ -1305,14 +1472,16 @@ namespace SVoice.GameBar
             StatusDot.Fill = new SolidColorBrush(color);
         }
 
-        private void SetReadyState() => SetState("PRONTO", Accent);
+        private void SetReadyState()
+        {
+            SetState(string.IsNullOrEmpty(_backendLabel) ? "PRONTO" : $"PRONTO · {_backendLabel}", Accent);
+        }
 
         private void SetSpeakingState() => SetState("FALANDO", Warning);
 
         private void ShowError(Exception exception)
         {
-            var bridgeError = exception as XttsBridgeException;
-            ShowError(exception.Message, bridgeError?.Action);
+            ShowError(exception.Message, (exception as XttsBridgeException)?.Action);
         }
 
         private void ShowError(string message, string? action = null)
@@ -1388,5 +1557,28 @@ namespace SVoice.GameBar
             });
             return await completion.Task;
         }
+    }
+
+    /// <summary>Row of the voices panel: a cloned profile or the Windows voice.</summary>
+    internal sealed class VoiceItem
+    {
+        private static readonly SolidColorBrush SelectedBorder = new SolidColorBrush(Color.FromArgb(120, 139, 233, 210));
+        private static readonly SolidColorBrush QuietBorder = new SolidColorBrush(Color.FromArgb(16, 255, 255, 255));
+        private static readonly SolidColorBrush Checked = new SolidColorBrush(Color.FromArgb(255, 139, 233, 210));
+        private static readonly SolidColorBrush Unchecked = new SolidColorBrush(Color.FromArgb(0, 255, 255, 255));
+
+        public VoiceItem(ClonedVoiceProfile? profile, bool selected)
+        {
+            Profile = profile;
+            Selected = selected;
+        }
+
+        public ClonedVoiceProfile? Profile { get; }
+        public bool Selected { get; }
+        public string Name => Profile?.Name ?? "Voz do Windows";
+        public string Summary => Profile?.Summary ?? "Voz de sistema do Windows (sem XTTS)";
+        public Brush BorderBrush => Selected ? SelectedBorder : QuietBorder;
+        public Brush CheckBrush => Selected ? Checked : Unchecked;
+        public Visibility ManageVisibility => Profile == null ? Visibility.Collapsed : Visibility.Visible;
     }
 }

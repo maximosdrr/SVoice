@@ -39,30 +39,38 @@ automaticamente pelo instalador; perfis de voz e o modelo são preservados.
 
 1. Pressione `Win + G` para abrir a Xbox Game Bar.
 2. No menu de widgets, escolha **SVoice** e fixe o widget pelo alfinete.
-3. Clique em **CLONAR**, selecione um ou mais áudios (WAV, MP3, M4A, FLAC ou
-   OGG) de uma única pessoa — de 10 segundos a 30 minutos no total — e dê um
-   nome. Use apenas vozes com autorização do titular.
-4. Selecione a voz clonada em **VOZ**, digite a frase e pressione `Enter`.
-   `Esc` interrompe a geração ou a reprodução.
+3. A tela principal é só o chat: escreva a frase e pressione `Enter`.
+   `Esc` interrompe a geração ou a reprodução. As frases já ditas aparecem
+   como balões; clique em um balão para repeti-lo.
+4. O chip **VOZ** à esquerda da caixa de texto mostra a voz atual e abre a aba
+   **Vozes**. Nela, **CLONAR VOZ** seleciona um ou mais áudios (WAV, MP3, M4A,
+   FLAC ou OGG) de uma única pessoa — de 10 segundos a 30 minutos no total —
+   e pede um nome. Use apenas vozes com autorização do titular. Clique numa voz
+   da lista para usá-la no chat; renomear e excluir ficam ao lado de cada voz.
 5. O áudio é enviado para **CABLE Input**. No Discord, em *Configurações ›
    Voz e vídeo*, escolha **CABLE Output (VB-Audio Virtual Cable)** como
    microfone. Desative a supressão de ruído do Discord se o início das frases
    for cortado.
-6. Ative **ECO** para ouvir a mesma fala nos seus fones ou alto-falantes.
+6. Ative o **Eco** (alto-falante no cabeçalho) para ouvir a mesma fala nos
+   seus fones ou alto-falantes.
 
-Botões do cabeçalho:
+Ícones do cabeçalho, da esquerda para a direita:
 
-- **Histórico** — últimas 8 frases; clique para repetir.
-- **Vozes** — renomear ou excluir perfis clonados.
-- **Ajustes** — processamento (Automático, NVIDIA CUDA, AMD DirectML, CPU),
-  saída de áudio, velocidade e volume.
-- **Diagnóstico** — GPU detectada, backend ativo, motivo de fallback, tempo da
-  síntese de teste, estado do modelo; botões **TESTAR BACKEND**, **RECONECTAR**
-  e **VERIFICAR MODELO**.
+- **Eco** — liga/desliga a reprodução local da fala.
+- **Vozes** — clonar, selecionar, renomear ou excluir perfis.
+- **Ajustes** (também pela engrenagem da Game Bar) — processamento (Automático,
+  NVIDIA CUDA, AMD DirectML, CPU), saída de áudio, velocidade e volume, e a
+  seção **Diagnóstico**: GPU detectada, backend ativo, motivo de fallback,
+  tempo da síntese de teste, estado do modelo; botões **TESTAR**,
+  **RECONECTAR** e **MODELO**.
+- **Modo compacto** — esconde o histórico e reduz o widget a uma única linha
+  (cabeçalho + caixa de texto), como na versão desktop original. O estado é
+  lembrado entre aberturas; abrir Vozes ou Ajustes expande temporariamente.
 
-A **Voz do Windows** aparece como opção explícita; ela nunca substitui a voz
-clonada silenciosamente. Se o XTTS não estiver pronto, o widget mostra o estado
-real (`MODELO AUSENTE`, `XTTS INDISPONÍVEL`) e a ação sugerida.
+A **Voz do Windows** aparece como opção explícita na aba Vozes; ela nunca
+substitui a voz clonada silenciosamente. Se o XTTS não estiver pronto, o
+cabeçalho mostra o estado real (`MODELO AUSENTE`, `XTTS INDISPONÍVEL`) e a
+faixa de erro sugere a ação.
 
 ## Onde ficam os dados
 
