@@ -57,6 +57,17 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Expandir/abrir abas e sintetizar dentro da Game Bar com o 2.1.0 | ⏳ não automatizado (a máquina estava em uso pelo usuário durante o teste); mesmo código verificado na janela standalone |
 | Testes do serviço após a mudança de `SERVICE_VERSION` | ✅ 45 testes OK |
 
+## Widget 2.1.1 — reprodução com a Game Bar oculta
+
+| Cenário | Evidência |
+| --- | --- |
+| Testes do serviço após a mudança de versão | ✅ 45 testes OK; 7 testes opcionais de importação com FFmpeg ignorados no Python de desenvolvimento |
+| Compilação Debug e Release + MSIX assinado 2.1.1 | ✅ `build-widget.ps1` e `build-widget-package.ps1` |
+| Manifesto instalado expõe `backgroundMediaPlayback` | ✅ confirmado por `Get-AppxPackageManifest` |
+| MSIX assinado e registrado; ativação do widget na Game Bar | ✅ assinatura válida; `GameBarContext=True`, bridge conectado, serviço pronto, 5 perfis |
+| Atividade de fala sobrevive ao `Page.Unloaded` e só termina no fim/cancelamento da mídia | ✅ caminho de ciclo de vida corrigido e compilado; registros de início/fim adicionados |
+| Confirmação auditiva digitando, ocultando com Win+G durante a síntese e aguardando a fala | ⏳ requer interação manual porque a automação desta sessão não recebeu acesso às janelas nativas |
+
 ## Instalador (`SVoice.Setup` + Inno Setup)
 
 | Cenário | Evidência |

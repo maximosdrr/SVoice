@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 — 2026-09-22
+
+- mantém a síntese XTTS ativa quando a Xbox Game Bar é ocultada durante o processamento;
+- permite que o áudio gerado seja reproduzido em segundo plano;
+- evita que o descarregamento visual do widget interrompa a fala pendente.
+
 ## 2.1.0 — 2026-09-21
 
 Redesenho do widget com foco no chat.

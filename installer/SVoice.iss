@@ -3,7 +3,7 @@
 
 #define MyAppName "SVoice"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.1.0"
+  #define MyAppVersion "2.1.1"
 #endif
 #define MyAppPublisher "SVoice"
 #ifndef StagingDir

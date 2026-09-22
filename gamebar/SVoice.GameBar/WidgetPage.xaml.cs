@@ -147,9 +147,16 @@ namespace SVoice.GameBar
 
         private void Page_Unloaded(object sender, RoutedEventArgs args)
         {
-            // Game Bar can unload and reload the same page when a widget is hidden.
-            StopPlayback();
-            _jobTimer.Stop();
+            // Dismissing Game Bar unloads the visual tree even though a speech
+            // request may still be running. Keep the XboxGameBarWidgetActivity
+            // and MediaPlayer alive; they are completed by the normal
+            // synthesis/playback end path. Stopping them here silently discarded
+            // speech generated while the overlay was hidden.
+            App.Log($"WidgetPage unloaded. Generating={_isGenerating}; Playback={_player.PlaybackSession.PlaybackState}; Activity={_speechActivity != null}.");
+            if (!_isGenerating)
+            {
+                _jobTimer.Stop();
+            }
         }
 
         // -------------------------------------------------------------- settings
@@ -1009,6 +1016,7 @@ namespace SVoice.GameBar
 
                     _player.Source = MediaSource.CreateFromStream(_currentStream, contentType);
                     _player.Play();
+                    App.Log("Speech playback started.");
                     if (_echoPlayer.Source != null)
                     {
                         _echoPlayer.Play();
@@ -1070,10 +1078,12 @@ namespace SVoice.GameBar
             try
             {
                 _speechActivity = new XboxGameBarWidgetActivity(_widget, "svoice-speech");
+                App.Log("Speech background activity started.");
             }
-            catch
+            catch (Exception exception)
             {
                 // Speech still works when the host rejects an activity request.
+                App.Log($"Speech background activity could not start: {exception.Message}");
             }
         }
 
@@ -1117,6 +1127,7 @@ namespace SVoice.GameBar
 
         private async void Player_MediaEnded(MediaPlayer sender, object args)
         {
+            App.Log("Speech playback completed.");
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
                 StopPlayback();

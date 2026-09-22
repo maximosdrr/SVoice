@@ -25,7 +25,7 @@ Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
 ## Instalação
 
-Execute `SVoice-Setup-2.1.0.exe` como administrador, mantenha marcadas as
+Execute `SVoice-Setup-2.1.1.exe` como administrador, mantenha marcadas as
 opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
 driver for instalado pela primeira vez, reinicie o Windows.
 
