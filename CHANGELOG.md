@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.1.0 — 2026-09-21
+
+Redesenho do widget com foco no chat.
+
+### Alterado
+- A tela principal mostra apenas o chat: as frases enviadas aparecem como
+  balões (até 12, clique para repetir) e a caixa de texto fica fixa na base,
+  com o chip da voz atual ao lado.
+- **Modo compacto** (seta no cabeçalho): esconde o histórico e reduz o widget
+  a cabeçalho + caixa de texto, como na versão desktop original. O widget é
+  redimensionado dentro da Game Bar e o estado é lembrado entre aberturas;
+  abrir Vozes ou Ajustes expande temporariamente.
+- Clonagem, seleção, renomeação e exclusão de vozes ficaram na aba **Vozes**
+  (ícone de pessoa ou chip VOZ); a tela principal não tem mais botões de
+  clonagem.
+- Diagnóstico e seus botões (TESTAR, RECONECTAR, MODELO) passaram a ser uma
+  seção da aba **Ajustes**, também aberta pela engrenagem da Game Bar.
+- Cabeçalho reduzido a logo, nome, estado (`PRONTO · CUDA`) e quatro ícones
+  (Eco, Vozes, Ajustes, compacto); tipografia menor, superfícies translúcidas
+  e a mesma paleta escura com destaque menta.
+- Altura mínima do widget reduzida para 110 px (modo compacto).
+
+### Removido
+- Painel Histórico separado (o histórico agora é o próprio chat) e classe
+  `VoiceChoice` sem uso.
+
 ## 2.0.4 — 2026-09-21
 
 Primeira versão standalone: o SVoice passa a existir apenas como widget da

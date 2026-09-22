@@ -46,6 +46,17 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Clonagem e síntese de dentro da Game Bar com 2.0.4 (usuário) | ✅ 20:32:48 widget aberto (`GameBarContext=True`, 3 perfis); 20:33:28 perfil criado (2 trechos, 20,1 s); modelo carregado em 25,2 s; 20:34:00 `backend=cuda`, 4 perfis; sínteses às 20:34:18 e 20:34:27 com o perfil novo |
 | Cancelamento (Esc), histórico e Eco dentro da Game Bar | ⚠️ exercitados pelo usuário sem registro em log (funções verificadas na janela standalone, mesmo código) |
 
+## Widget 2.1.0 — redesenho focado no chat
+
+| Cenário | Evidência |
+| --- | --- |
+| Compilação Debug e Release + MSIX assinado 2.1.0 (`build-widget-package.ps1`) | ✅ 21:05 |
+| Janela standalone: chat em balões (mais antigo no topo, rolagem automática), chip VOZ, aba Vozes (lista com Voz do Windows, CLONAR VOZ, renomear, excluir), aba Ajustes com seção Diagnóstico, modo compacto escondendo o histórico | ✅ capturas de tela `design-2`, `design-voices`, `design-settings`, `design-compact` |
+| Dentro da Xbox Game Bar: pacote assinado 2.1.0 registrado sobre o 2.0.4 com dados preservados (`Remove-AppxPackage -PreserveApplicationData` + `Add-AppxPackage`), widget aberto com `GameBarContext=True`, `state=ready`, `backend=cuda`, 5 perfis | ✅ `gamebar.log` 21:05:23 e 21:05:37 |
+| Modo compacto dentro da Game Bar: widget reaberto já compacto (estado lembrado) e redimensionado pela `TryResizeWindowAsync` para cabeçalho + caixa de texto, sem erro `Window resize failed` no log | ✅ captura `gb-2` 21:06 |
+| Expandir/abrir abas e sintetizar dentro da Game Bar com o 2.1.0 | ⏳ não automatizado (a máquina estava em uso pelo usuário durante o teste); mesmo código verificado na janela standalone |
+| Testes do serviço após a mudança de `SERVICE_VERSION` | ✅ 45 testes OK |
+
 ## Instalador (`SVoice.Setup` + Inno Setup)
 
 | Cenário | Evidência |

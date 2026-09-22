@@ -9,7 +9,8 @@ ou de ferramentas de desenvolvimento.
 
 - clonagem local de voz a partir de WAV, MP3, M4A, FLAC ou OGG;
 - síntese XTTS v2 em português diretamente pela Xbox Game Bar;
-- histórico, renomeação e exclusão de perfis;
+- chat com balões das frases ditas, modo compacto (só a caixa de texto),
+  aba de vozes com clonagem, renomeação e exclusão de perfis;
 - envio automático para `CABLE Input`;
 - modo Eco para ouvir a mesma fala na saída padrão;
 - aceleração NVIDIA CUDA;
@@ -24,7 +25,7 @@ Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
 ## Instalação
 
-Execute `SVoice-Setup-2.0.4.exe` como administrador, mantenha marcadas as
+Execute `SVoice-Setup-2.1.0.exe` como administrador, mantenha marcadas as
 opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
 driver for instalado pela primeira vez, reinicie o Windows.
 
@@ -34,7 +35,8 @@ Depois:
 2. Abra o menu de widgets e escolha **SVoice**.
 3. No Discord, selecione **CABLE Output (VB-Audio Virtual Cable)** como
    microfone.
-4. No widget, clone ou selecione uma voz, escreva a frase e pressione `Enter`.
+4. No widget, escreva a frase e pressione `Enter`; o chip **VOZ** abre a aba
+   de vozes para clonar ou trocar a voz.
 
 Consulte [entrega e hashes](docs/entrega.md), [instalação e uso](docs/instalacao-e-uso.md),
 [backends](docs/backends.md), [segurança](docs/seguranca.md),
