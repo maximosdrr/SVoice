@@ -64,7 +64,10 @@ automaticamente pelo instalador; perfis de voz e o modelo são preservados.
   NVIDIA CUDA, AMD DirectML, CPU), saída de áudio, velocidade e volume, e a
   seção **Diagnóstico**: GPU detectada, backend ativo, motivo de fallback,
   tempo da síntese de teste, estado do modelo; botões **TESTAR**,
-  **RECONECTAR** e **MODELO**.
+  **RECONECTAR** e **MODELO**. A opção **Manter XTTS carregado** evita o
+  encerramento após inatividade (usando RAM/VRAM continuamente); o botão
+  **ENCERRAR XTTS** libera essa memória e muda para **INICIAR XTTS**. Enviar
+  uma fala com voz clonada também inicia o serviço automaticamente.
 - **Modo compacto** — esconde o histórico e reduz o widget a uma única linha
   (cabeçalho + caixa de texto), como na versão desktop original. O estado é
   lembrado entre aberturas; abrir Vozes ou Ajustes expande temporariamente.

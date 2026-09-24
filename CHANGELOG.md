@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.1 — 2026-09-24
+
+- adiciona em Ajustes a opção **Manter XTTS carregado**, que desativa o
+  encerramento automático por inatividade e preserva o modelo na RAM/VRAM;
+- adiciona um único botão para encerrar e iniciar o serviço XTTS sem ocupar a
+  tela principal;
+- inicia o serviço automaticamente ao enviar uma mensagem com voz clonada,
+  mesmo após um encerramento manual;
+- mantém o encerramento automático de 15 minutos como comportamento padrão.
+
 ## 2.2.0 — 2026-09-24
 
 - corta referências longas em pausas naturais com Silero VAD e fallback do FFmpeg;

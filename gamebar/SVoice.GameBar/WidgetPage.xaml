@@ -401,6 +401,27 @@
                                 </StackPanel>
                             </Border>
 
+                            <Border Padding="10,7" Background="#0DFFFFFF" CornerRadius="10">
+                                <Grid ColumnSpacing="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="1">
+                                        <TextBlock Style="{StaticResource BodyText}" FontWeight="SemiBold" Text="Manter XTTS carregado" />
+                                        <TextBlock Style="{StaticResource SmallLabel}" Text="Evita recarregar após inatividade; mantém RAM e VRAM em uso." />
+                                    </StackPanel>
+                                    <ToggleSwitch
+                                        x:Name="KeepXttsLoadedToggle"
+                                        Grid.Column="1"
+                                        MinWidth="44"
+                                        VerticalAlignment="Center"
+                                        OffContent=""
+                                        OnContent=""
+                                        Toggled="KeepXttsLoadedToggle_Toggled" />
+                                </Grid>
+                            </Border>
+
                             <TextBlock Style="{StaticResource MicroLabel}" Margin="2,6,0,0" Text="DIAGNÓSTICO" />
                             <TextBlock x:Name="DiagnosticsSummary" Style="{StaticResource BodyText}" Text="Abra Ajustes para consultar o mecanismo XTTS." />
                             <ItemsControl x:Name="DiagnosticsList">
@@ -423,6 +444,19 @@
                                 <Button x:Name="RestartServiceButton" Style="{StaticResource CompactButton}" Click="RestartService_Click" Content="RECONECTAR" />
                                 <Button x:Name="EnsureModelButton" Style="{StaticResource CompactButton}" Click="EnsureModel_Click" Content="MODELO" />
                             </StackPanel>
+                            <Grid Margin="2,1,0,0" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SmallLabel}" Text="Libera a memória; o XTTS inicia novamente na próxima fala." />
+                                <Button
+                                    x:Name="ShutdownServiceButton"
+                                    Grid.Column="1"
+                                    Style="{StaticResource CompactButton}"
+                                    Click="ShutdownService_Click"
+                                    Content="ENCERRAR XTTS" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

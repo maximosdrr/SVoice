@@ -79,6 +79,7 @@ class ServiceApp:
             "active_backend": engine["active_backend"],
             "active_backend_label": engine["active_backend_label"],
             "compute_mode": engine["compute_mode"],
+            "keep_xtts_loaded": engine["keep_xtts_loaded"],
             "fallback_reason": engine["fallback_reason"],
             "gpu_name": next((gpu.name for gpu in self.system.gpus if gpu.vendor in ("nvidia", "amd")), None),
             "runtime": self.runtime_info,
@@ -126,6 +127,9 @@ class ServiceApp:
         return self.run_job("cloning", "Preparando os áudios de referência…", work)
 
     def update_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        keep_loaded = payload.get("keep_xtts_loaded")
+        if "keep_xtts_loaded" in payload and not isinstance(keep_loaded, bool):
+            raise ServiceError("A opção de permanência do XTTS é inválida.", code="invalid_keep_loaded")
         if "compute_mode" in payload:
             raw = payload.get("compute_mode")
             mode = backends.normalize_compute_mode(raw)
@@ -137,10 +141,21 @@ class ServiceApp:
                 self.config.data["compute_mode"] = mode
                 self.config.save()
                 self.engine.unload()
+        if "keep_xtts_loaded" in payload:
+            if keep_loaded != self.config.keep_xtts_loaded:
+                self.config.data["keep_xtts_loaded"] = keep_loaded
+                self.config.save()
+            # Start a fresh idle window when the option is changed. Otherwise,
+            # disabling it after a long session could terminate the service in
+            # the same instant as the settings request.
+            self.jobs.touch()
         if payload.get("reset_validation"):
             self.config.data["backend_validation"] = {}
             self.config.save()
-        return {"compute_mode": self.config.compute_mode}
+        return {
+            "compute_mode": self.config.compute_mode,
+            "keep_xtts_loaded": self.config.keep_xtts_loaded,
+        }
 
     def diagnostics(self) -> dict[str, Any]:
         return {
@@ -350,7 +365,10 @@ class ApiHandler(BaseHTTPRequestHandler):
             app.registry.delete(profile_id)
             self._send_json(HTTPStatus.OK, {"deleted": True})
         elif method == "GET" and path == "/config":
-            self._send_json(HTTPStatus.OK, {"compute_mode": app.config.compute_mode})
+            self._send_json(HTTPStatus.OK, {
+                "compute_mode": app.config.compute_mode,
+                "keep_xtts_loaded": app.config.keep_xtts_loaded,
+            })
         elif method == "POST" and path == "/config":
             self._send_json(HTTPStatus.OK, app.update_config(payload))
         elif method == "POST" and path == "/synthesize":

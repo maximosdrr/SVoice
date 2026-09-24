@@ -105,6 +105,18 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Widget com operação de clonagem longa | ✅ compilação Debug; timeout dedicado de 24 h para importações extensas |
 | Instalação limpa com as novas dependências | ✅ pacotes e instalador regenerados; o modelo XTTS continua fora do instalador e é baixado pelo fluxo existente |
 
+## Widget 2.2.1 — controle do serviço XTTS
+
+| Cenário | Evidência |
+| --- | --- |
+| Permanência configurável | ✅ opção persistida no serviço e política de inatividade coberta por testes unitários |
+| Serviço ativo com a opção ligada | ✅ API real confirmou `keep_xtts_loaded=true` em configuração e saúde |
+| Encerramento explícito | ✅ `POST /shutdown` encerrou o processo com código 0 |
+| Reinício pelo mesmo botão e por uma fala clonada | ✅ fluxos compilados no widget; ambos passam pelo bridge, que inicia ou adota uma única instância |
+| Regressão do serviço | ✅ 60 testes no runtime Python embutido/CPU |
+| Widget | ✅ MSIX Debug e Release 2.2.1 compilados; Release assinado e com bridge autocontido |
+| Instalador | ✅ `SVoice-Setup-2.2.1.exe` gerado reutilizando os runtimes 2026.09.24 verificados |
+
 ## Instalador (`SVoice.Setup` + Inno Setup)
 
 | Cenário | Evidência |

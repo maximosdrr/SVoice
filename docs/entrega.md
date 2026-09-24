@@ -1,17 +1,17 @@
-# Entrega — SVoice 2.2.0 (Xbox Game Bar standalone)
+# Entrega — SVoice 2.2.1 (Xbox Game Bar standalone)
 
 ## Artefatos
 
-Gerados em 2026-09-24 após a reconstrução do runtime base/CPU, dos arquivos de
-runtime e do widget 2.2.0. O instalador final foi montado com
-`installer\build-installer.ps1 -Version 2.2.0 -SkipWidgetBuild -SkipRuntimeBuild`.
+Gerados em 2026-09-24 reutilizando os runtimes 2026.09.24 verificados e
+reconstruindo o widget 2.2.1. O instalador final foi montado com
+`installer\build-installer.ps1 -Version 2.2.1 -SkipWidgetBuild -SkipRuntimeBuild`.
 Os artefatos ficam em `artifacts\` (ignorado pelo Git) e não são versionados;
 os hashes abaixo permitem conferir o que foi distribuído.
 
 | Arquivo | Tamanho | SHA-256 |
 | --- | --- | --- |
-| `SVoice-Setup-2.2.0.exe` (instalador único, offline, todos os packs) | 2 956 173 029 bytes | `ff119d8328986a59b438e709d11b82c8d69dbf629d04e5995f8207e868549dda` |
-| `widget/SVoice.GameBar_2.2.0.0_x64.msix` (dentro do instalador) | 84 706 547 bytes | `2d9fc68beeae9a37a70e92b7967e4f7e8bc67bc42c2f3d9b8e6cd9c562421aed` |
+| `SVoice-Setup-2.2.1.exe` (instalador único, offline, todos os packs) | 2 956 170 921 bytes | `e55d1f8238bc4a46de04516bfa4302b1bd8df9dd45957e95065009f9a04a7975` |
+| `widget/SVoice.GameBar_2.2.1.0_x64.msix` (dentro do instalador) | 84 699 113 bytes | `2372771bb779546fb9b2d0ff28a5af73b9bf20ebf61e7fad86d47564daca7363` |
 | `runtime/svoice-python-3.12.10.zip` | 11 945 103 bytes | `f9dfb8fab929c766734d92243dd1d4caed783d0cbb648fd07df39f1d5af03cbe` |
 | `runtime/svoice-pack-base-2026.09.24.zip` | 231 839 545 bytes | `2980adb58add7561b5a526ea700a50dfea09ddbdbd4ade91f8258988899bfe4d` |
 | `runtime/svoice-pack-torch-cpu-2026.09.24.zip` | 137 830 477 bytes | `39ca138956f719d96f146bfea24bc289f2d26523dc6e347a0b0aa3ffac8f3fab` |
@@ -90,7 +90,9 @@ VAD (MIT), FFmpeg via imageio-ffmpeg (GPL v3, processo separado), Python (PSF).
    confirmação visual e auditiva em outra máquina continua sendo manual. No
    2.2.0, os testes automatizados cobrem o novo corte por pausas, referências
    acima de 30 minutos e cache permanente; a instalação em outra máquina
-   limpa continua sendo uma validação manual pendente.
+   limpa continua sendo uma validação manual pendente. No 2.2.1, os testes
+   cobrem a permanência configurável e o encerramento explícito do serviço; a
+   validação visual final na Xbox Game Bar permanece manual.
 6. **Modelo XTTS v2**: 1,9 GB baixados de `huggingface.co/coqui/XTTS-v2` na
    instalação (ou fornecidos ao lado do instalador); a primeira fala após
    abrir o widget carrega o modelo (10–30 s em GPU).

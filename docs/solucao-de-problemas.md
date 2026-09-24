@@ -61,8 +61,10 @@ e repita a verificação. Arquivos corrompidos são detectados e baixados de nov
 
 Em CPU cada frase leva alguns segundos por sentença. Frases curtas respondem
 mais rápido; `Esc` cancela entre sentenças. Em GPU a primeira fala após abrir o
-widget carrega o modelo (10–30 s); o serviço permanece ativo por 15 minutos
-após a última requisição para evitar recarregar.
+widget carrega o modelo (10–30 s); por padrão, o serviço permanece ativo por 15 minutos
+sem uso. Para evitar um novo carregamento, ative **Ajustes › Manter XTTS
+carregado**. O botão **ENCERRAR XTTS** libera a RAM/VRAM; use o mesmo botão ou
+envie uma nova fala clonada para iniciá-lo novamente.
 
 ## Perfil marcado com `(!)`
 

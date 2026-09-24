@@ -151,6 +151,7 @@ class ConfigStore:
     DEFAULTS: dict[str, Any] = {
         "compute_mode": "auto",
         "backend_validation": {},
+        "keep_xtts_loaded": False,
     }
 
     def __init__(self, path: Path):
@@ -164,10 +165,16 @@ class ConfigStore:
         self.data["compute_mode"] = backends.normalize_compute_mode(self.data.get("compute_mode"))
         if not isinstance(self.data.get("backend_validation"), dict):
             self.data["backend_validation"] = {}
+        if not isinstance(self.data.get("keep_xtts_loaded"), bool):
+            self.data["keep_xtts_loaded"] = False
 
     @property
     def compute_mode(self) -> str:
         return backends.normalize_compute_mode(self.data.get("compute_mode"))
+
+    @property
+    def keep_xtts_loaded(self) -> bool:
+        return self.data.get("keep_xtts_loaded") is True
 
     def save(self) -> None:
         self._write(self._path, self.data)
@@ -754,6 +761,7 @@ class XttsEngine:
             "model_load_seconds": self.model_load_seconds,
             "fallback_reason": self.last_fallback_reason,
             "compute_mode": self.config.compute_mode,
+            "keep_xtts_loaded": self.config.keep_xtts_loaded,
         }
 
     def diagnostics(self) -> dict[str, Any]:

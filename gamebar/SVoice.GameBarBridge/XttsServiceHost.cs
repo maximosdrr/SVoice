@@ -12,8 +12,8 @@ namespace SVoice.GameBarBridge;
 /// <remarks>
 /// The service is a per-user process discovered through
 /// <c>%LOCALAPPDATA%\SVoice\XTTS\service.json</c>. The bridge never kills it on
-/// exit: the service shuts itself down after a period of inactivity, so
-/// reopening the widget does not reload the model.
+/// exit. By default the service shuts itself down after a period of inactivity;
+/// the user can keep it loaded or stop it explicitly from the widget settings.
 /// </remarks>
 internal sealed class XttsServiceHost : IDisposable
 {
@@ -185,6 +185,12 @@ internal sealed class XttsServiceHost : IDisposable
             body["reset_validation"] = true;
         }
 
+        if (request.TryGetProperty("keep_xtts_loaded", out var keepLoaded) &&
+            keepLoaded.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            body["keep_xtts_loaded"] = keepLoaded.GetBoolean();
+        }
+
         var result = await SendAsync(HttpMethod.Post, "/config", body);
         if (body.ContainsKey("compute_mode"))
         {
@@ -207,6 +213,12 @@ internal sealed class XttsServiceHost : IDisposable
         await StopServiceAsync();
         await EnsureStartedAsync();
         return await GetAsync("/health");
+    }
+
+    public async Task<JsonObject> ShutdownServiceAsync()
+    {
+        var stopped = await StopServiceAsync();
+        return new JsonObject { ["stopped"] = stopped };
     }
 
     // ------------------------------------------------------------------ lifecycle
@@ -363,13 +375,31 @@ internal sealed class XttsServiceHost : IDisposable
         throw new TimeoutException("O mecanismo XTTS não respondeu a tempo.");
     }
 
-    private async Task StopServiceAsync()
+    private async Task<bool> StopServiceAsync()
     {
         var endpoint = _endpoint;
-        _endpoint = null;
         if (endpoint == null)
         {
-            return;
+            var discovered = ReadDiscovery();
+            if (discovered == null || !ProcessAlive(discovered.Pid))
+            {
+                return true;
+            }
+
+            // Never terminate a process just because a stale discovery file
+            // happens to contain its PID. Prove that it is our authenticated
+            // service before adopting it for shutdown.
+            if (!await IsHealthyAsync(discovered))
+            {
+                return false;
+            }
+            endpoint = discovered;
+        }
+
+        _endpoint = null;
+        if (!ProcessAlive(endpoint.Pid))
+        {
+            return true;
         }
 
         try
@@ -399,7 +429,21 @@ internal sealed class XttsServiceHost : IDisposable
             {
                 // Best effort.
             }
+
+            var killDeadline = DateTimeOffset.UtcNow.AddSeconds(5);
+            while (DateTimeOffset.UtcNow < killDeadline && ProcessAlive(endpoint.Pid))
+            {
+                await Task.Delay(100);
+            }
         }
+
+        var stopped = !ProcessAlive(endpoint.Pid);
+        if (stopped && _process?.Id == endpoint.Pid)
+        {
+            _process.Dispose();
+            _process = null;
+        }
+        return stopped;
     }
 
     private static Endpoint? ReadDiscovery()
@@ -560,8 +604,7 @@ internal sealed class XttsServiceHost : IDisposable
 
     public void Dispose()
     {
-        // The service keeps running until its idle timeout so the model stays
-        // loaded between widget sessions.
+        // The service lifecycle is independent from the short-lived bridge.
         _process?.Dispose();
         _client.Dispose();
         _startupLock.Dispose();

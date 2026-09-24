@@ -17,7 +17,7 @@ if str(SERVICE_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIRECTORY))
 
 from svoice_xtts import backends, model, runtime, service as service_module  # noqa: E402
-from svoice_xtts.api import ApiHandler  # noqa: E402
+from svoice_xtts.api import ApiHandler, ServiceApp  # noqa: E402
 from svoice_xtts.engine import ConfigStore, sanitize_text, split_into_chunks  # noqa: E402
 from svoice_xtts.errors import CancelledError, ServiceError  # noqa: E402
 from svoice_xtts.hardware import GpuInfo, SystemInfo  # noqa: E402
@@ -120,6 +120,65 @@ class ConfigStoreTests(unittest.TestCase):
             path.write_text("{invalid", encoding="utf-8")
             config = ConfigStore(path)
             self.assertEqual(config.compute_mode, "auto")
+            self.assertFalse(config.keep_xtts_loaded)
+
+    def test_reads_and_persists_keep_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({"keep_xtts_loaded": True}), encoding="utf-8")
+            config = ConfigStore(path)
+            self.assertTrue(config.keep_xtts_loaded)
+            config.data["keep_xtts_loaded"] = False
+            config.save()
+            self.assertFalse(json.loads(path.read_text(encoding="utf-8"))["keep_xtts_loaded"])
+
+    def test_invalid_keep_loaded_value_uses_safe_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.json"
+            path.write_text(json.dumps({"keep_xtts_loaded": "yes"}), encoding="utf-8")
+            self.assertFalse(ConfigStore(path).keep_xtts_loaded)
+
+    def test_service_updates_and_returns_keep_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app = object.__new__(ServiceApp)
+            app.config = ConfigStore(Path(directory) / "config.json")
+            app.jobs = JobTracker()
+            app.engine = type("Engine", (), {"unload": lambda self: None})()
+            result = app.update_config({"keep_xtts_loaded": True})
+            self.assertTrue(result["keep_xtts_loaded"])
+            self.assertTrue(ConfigStore(Path(directory) / "config.json").keep_xtts_loaded)
+
+    def test_service_rejects_non_boolean_keep_loaded(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app = object.__new__(ServiceApp)
+            app.config = ConfigStore(Path(directory) / "config.json")
+            app.jobs = JobTracker()
+            app.engine = type("Engine", (), {"unload": lambda self: None})()
+            with self.assertRaises(ServiceError) as captured:
+                app.update_config({"keep_xtts_loaded": "true"})
+            self.assertEqual(captured.exception.code, "invalid_keep_loaded")
+            self.assertFalse(app.config.keep_xtts_loaded)
+
+
+class IdleShutdownTests(unittest.TestCase):
+    def test_keep_loaded_disables_idle_shutdown(self) -> None:
+        class Config:
+            keep_xtts_loaded = True
+
+        tracker = JobTracker()
+        tracker.last_activity = 10
+        app = type("App", (), {"config": Config(), "jobs": tracker})()
+        self.assertFalse(service_module.idle_shutdown_due(app, 900, now=1000))
+
+    def test_default_policy_stops_after_timeout(self) -> None:
+        class Config:
+            keep_xtts_loaded = False
+
+        tracker = JobTracker()
+        tracker.last_activity = 10
+        app = type("App", (), {"config": Config(), "jobs": tracker})()
+        self.assertFalse(service_module.idle_shutdown_due(app, 900, now=909))
+        self.assertTrue(service_module.idle_shutdown_due(app, 900, now=910))
 
 
 class DiscoveryRaceTests(unittest.TestCase):

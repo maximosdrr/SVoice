@@ -266,6 +266,11 @@ namespace SVoice.GameBar
             return SendAsync(new { command = "set_config", protocol = ProtocolVersion, compute_mode = computeMode }, TimeSpan.FromMinutes(3));
         }
 
+        public Task<JsonDocument> SetKeepLoadedAsync(bool keepLoaded)
+        {
+            return SendAsync(new { command = "set_config", protocol = ProtocolVersion, keep_xtts_loaded = keepLoaded }, TimeSpan.FromMinutes(3));
+        }
+
         public Task<JsonDocument> EnsureModelAsync()
         {
             return SendAsync(new { command = "ensure_model", protocol = ProtocolVersion }, LongOperation);
@@ -274,6 +279,11 @@ namespace SVoice.GameBar
         public Task<JsonDocument> RestartServiceAsync()
         {
             return SendAsync(new { command = "restart_service", protocol = ProtocolVersion }, TimeSpan.FromMinutes(3));
+        }
+
+        public Task<JsonDocument> ShutdownServiceAsync()
+        {
+            return SendAsync(new { command = "shutdown_service", protocol = ProtocolVersion }, TimeSpan.FromSeconds(30));
         }
 
         private static ClonedVoiceProfile ParseProfile(JsonElement profile)

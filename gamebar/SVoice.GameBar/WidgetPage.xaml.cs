@@ -74,7 +74,10 @@ namespace SVoice.GameBar
         private bool _echoEnabled;
         private bool _isGenerating;
         private bool _xttsAvailable;
+        private bool _xttsServiceRunning;
+        private bool _serviceStoppedByUser;
         private bool _suppressSelectionEvents;
+        private bool _suppressKeepLoadedChange;
         private bool _compact;
         private bool _panelExpandedTemporarily;
         private double _expandedHeight = DefaultExpandedHeight;
@@ -523,6 +526,12 @@ namespace SVoice.GameBar
 
         private async Task RefreshXttsAsync(string? preferredProfileId = null)
         {
+            if (_serviceStoppedByUser)
+            {
+                await Ui(() => SetServicePowerState(false));
+                return;
+            }
+
             await Ui(() => SetState("CONECTANDO", Working));
 
             XttsHealth? health = null;
@@ -556,6 +565,7 @@ namespace SVoice.GameBar
 
             await Ui(() =>
             {
+                SetServicePowerState(health != null);
                 EnsureSelectedVoice();
                 RenderVoiceChip();
                 RenderVoicesPanel();
@@ -790,6 +800,7 @@ namespace SVoice.GameBar
                 });
 
                 IReadOnlyList<string> referencePaths = files.Select(file => file.Path).ToArray();
+                _serviceStoppedByUser = false;
                 var profile = await _xttsBridge.CreateProfileAsync(requestedName, referencePaths);
                 App.Log($"XTTS profile created: {profile.Id}.");
                 await Ui(EndJob);
@@ -837,6 +848,7 @@ namespace SVoice.GameBar
                     return;
                 }
 
+                _serviceStoppedByUser = false;
                 await _xttsBridge.RenameProfileAsync(profile.Id, nameBox.Text.Trim());
                 await RefreshXttsAsync();
             }
@@ -873,6 +885,7 @@ namespace SVoice.GameBar
                     return;
                 }
 
+                _serviceStoppedByUser = false;
                 await _xttsBridge.DeleteProfileAsync(profile.Id);
                 App.Log($"XTTS profile deleted: {profile.Id}.");
                 if (_selectedProfileId == profile.Id)
@@ -953,11 +966,11 @@ namespace SVoice.GameBar
                 return;
             }
 
-            if (!useWindowsVoice && (!profile!.IsUsable || !_xttsAvailable))
+            if (!useWindowsVoice && !profile!.IsUsable)
             {
                 ShowError(
-                    _xttsAvailable ? "Este perfil está sem o áudio de referência." : "O mecanismo XTTS não está disponível.",
-                    _xttsAvailable ? "Exclua o perfil em Vozes e crie-o novamente com o áudio original." : "Use RECONECTAR em Ajustes › Diagnóstico.");
+                    "Este perfil está sem o áudio de referência.",
+                    "Exclua o perfil em Vozes e crie-o novamente com o áudio original.");
                 return;
             }
 
@@ -968,6 +981,7 @@ namespace SVoice.GameBar
 
             try
             {
+                _serviceStoppedByUser = false;
                 _isGenerating = true;
                 StopPlayback();
                 HideError();
@@ -987,6 +1001,8 @@ namespace SVoice.GameBar
                     contentType = result.ContentType;
                     await Ui(() =>
                     {
+                        _xttsAvailable = true;
+                        SetServicePowerState(true);
                         EndJob();
                         var label = ShortBackend(result.BackendLabel?.ToLowerInvariant() switch
                         {
@@ -1339,6 +1355,20 @@ namespace SVoice.GameBar
 
         private async Task LoadDiagnosticsAsync()
         {
+            if (_serviceStoppedByUser)
+            {
+                await Ui(() =>
+                {
+                    SetServicePowerState(false);
+                    DiagnosticsSummary.Text = "XTTS encerrado. Use INICIAR XTTS ou envie uma fala com voz clonada.";
+                    DiagnosticsList.ItemsSource = new List<LabeledValue>
+                    {
+                        new LabeledValue("Memória", "RAM e VRAM do modelo foram liberadas"),
+                    };
+                });
+                return;
+            }
+
             await Ui(() =>
             {
                 DiagnosticsSummary.Text = "Consultando o mecanismo XTTS…";
@@ -1354,6 +1384,9 @@ namespace SVoice.GameBar
                 var system = root.TryGetProperty("system", out var systemValue) ? systemValue : default;
                 var modelInfo = root.TryGetProperty("model", out var modelValue) ? modelValue : default;
                 var runtime = engine.ValueKind == JsonValueKind.Object && engine.TryGetProperty("runtime", out var runtimeValue) ? runtimeValue : default;
+                var keepLoaded = engine.ValueKind == JsonValueKind.Object &&
+                    engine.TryGetProperty("keep_xtts_loaded", out var keepLoadedValue) &&
+                    keepLoadedValue.ValueKind == JsonValueKind.True;
 
                 var gpuNames = system.ValueKind == JsonValueKind.Object && system.TryGetProperty("gpus", out var gpus) && gpus.ValueKind == JsonValueKind.Array
                     ? gpus.EnumerateArray().Select(gpu =>
@@ -1367,6 +1400,7 @@ namespace SVoice.GameBar
                 var activeLabel = engine.GetStringOrNull("active_backend_label");
                 var recommended = engine.GetStringOrNull("recommended_backend");
                 items.Add(new LabeledValue("Modo configurado", ComputeModeLabel(engine.GetStringOrDefault("compute_mode", "auto"))));
+                items.Add(new LabeledValue("Permanência", keepLoaded ? "mantém o XTTS carregado" : "encerra após 15 min sem uso"));
                 items.Add(new LabeledValue("Backend ativo", activeLabel ?? "modelo ainda não carregado"));
                 items.Add(new LabeledValue("Backend recomendado", $"{ComputeModeLabel(recommended ?? "cpu")} — {engine.GetStringOrNull("recommended_reason")}"));
                 if (engine.GetStringOrNull("fallback_reason") is string fallback)
@@ -1410,6 +1444,10 @@ namespace SVoice.GameBar
 
                 await Ui(() =>
                 {
+                    SetServicePowerState(true);
+                    _suppressKeepLoadedChange = true;
+                    KeepXttsLoadedToggle.IsOn = keepLoaded;
+                    _suppressKeepLoadedChange = false;
                     DiagnosticsSummary.Text = activeLabel != null
                         ? $"XTTS pronto em {activeLabel}."
                         : $"XTTS pronto; o modelo será carregado em {ComputeModeLabel(recommended ?? "cpu")} na primeira fala.";
@@ -1429,6 +1467,7 @@ namespace SVoice.GameBar
                 App.Log($"Diagnostics failed: {exception}");
                 await Ui(() =>
                 {
+                    SetServicePowerState(false);
                     DiagnosticsSummary.Text = $"O mecanismo XTTS não respondeu: {exception.Message}";
                     DiagnosticsList.ItemsSource = new List<LabeledValue>
                     {
@@ -1449,6 +1488,35 @@ namespace SVoice.GameBar
                 "cpu" => "CPU",
                 _ => "Automático",
             };
+        }
+
+        private async void KeepXttsLoadedToggle_Toggled(object sender, RoutedEventArgs args)
+        {
+            if (_suppressKeepLoadedChange)
+            {
+                return;
+            }
+
+            var requested = KeepXttsLoadedToggle.IsOn;
+            KeepXttsLoadedToggle.IsEnabled = false;
+            try
+            {
+                using var response = await _xttsBridge.SetKeepLoadedAsync(requested);
+                App.Log($"XTTS keep-loaded set to {requested}.");
+                await LoadDiagnosticsAsync();
+            }
+            catch (Exception exception)
+            {
+                App.Log($"XTTS keep-loaded change failed: {exception}");
+                _suppressKeepLoadedChange = true;
+                KeepXttsLoadedToggle.IsOn = !requested;
+                _suppressKeepLoadedChange = false;
+                ShowError(exception);
+            }
+            finally
+            {
+                KeepXttsLoadedToggle.IsEnabled = _xttsServiceRunning;
+            }
         }
 
         private async void TestBackend_Click(object sender, RoutedEventArgs args)
@@ -1498,6 +1566,7 @@ namespace SVoice.GameBar
 
             try
             {
+                _serviceStoppedByUser = false;
                 SetState("REINICIANDO", Working);
                 DiagnosticsSummary.Text = "Reiniciando o mecanismo XTTS…";
                 using var response = await _xttsBridge.RestartServiceAsync();
@@ -1512,6 +1581,86 @@ namespace SVoice.GameBar
             await LoadDiagnosticsAsync();
         }
 
+        private async void ShutdownService_Click(object sender, RoutedEventArgs args)
+        {
+            if (_isGenerating)
+            {
+                ShowError("Aguarde a operação atual antes de encerrar o XTTS.");
+                return;
+            }
+
+            ShutdownServiceButton.IsEnabled = false;
+            try
+            {
+                if (!_xttsServiceRunning)
+                {
+                    _serviceStoppedByUser = false;
+                    SetState("INICIANDO XTTS", Working);
+                    DiagnosticsSummary.Text = "Iniciando o mecanismo XTTS…";
+                    await RefreshXttsAsync();
+                    if (!_xttsAvailable)
+                    {
+                        return;
+                    }
+
+                    await LoadDiagnosticsAsync();
+                    return;
+                }
+
+                DiagnosticsSummary.Text = "Encerrando o mecanismo XTTS…";
+                using var response = await _xttsBridge.ShutdownServiceAsync();
+                var stopped = response.RootElement.TryGetProperty("stopped", out var stoppedValue) &&
+                    stoppedValue.ValueKind == JsonValueKind.True;
+                if (!stopped)
+                {
+                    throw new InvalidOperationException("O processo XTTS não pôde ser encerrado.");
+                }
+
+                _lastHealth = null;
+                _xttsAvailable = false;
+                _backendLabel = string.Empty;
+                _serviceStoppedByUser = true;
+                SetServicePowerState(false);
+                SetState("XTTS ENCERRADO", Warning);
+                DiagnosticsSummary.Text = "XTTS encerrado. Ele inicia novamente quando você usar uma voz clonada.";
+                DiagnosticsList.ItemsSource = new List<LabeledValue>
+                {
+                    new LabeledValue("Memória", "RAM e VRAM do modelo foram liberadas"),
+                };
+                App.Log("XTTS service stopped by the user.");
+            }
+            catch (Exception exception)
+            {
+                App.Log($"XTTS shutdown failed: {exception}");
+                ShowError(exception);
+            }
+            finally
+            {
+                ShutdownServiceButton.IsEnabled = true;
+            }
+        }
+
+        private void SetServicePowerState(bool running)
+        {
+            _xttsServiceRunning = running;
+            if (running)
+            {
+                _serviceStoppedByUser = false;
+            }
+            ShutdownServiceButton.Content = running ? "ENCERRAR XTTS" : "INICIAR XTTS";
+            KeepXttsLoadedToggle.IsEnabled = running;
+            var diagnosticControlsEnabled = running || !_serviceStoppedByUser;
+            ComputeModeBox.IsEnabled = diagnosticControlsEnabled;
+            RestartServiceButton.IsEnabled = diagnosticControlsEnabled;
+            EnsureModelButton.IsEnabled = diagnosticControlsEnabled;
+            TestBackendButton.IsEnabled = diagnosticControlsEnabled && TestBackendBox.Items.Count > 0;
+            ToolTipService.SetToolTip(
+                ShutdownServiceButton,
+                running
+                    ? "Encerra o processo e libera a RAM e a VRAM usadas pelo XTTS."
+                    : "Inicia o XTTS agora. Uma fala com voz clonada também o inicia automaticamente.");
+        }
+
         private async void EnsureModel_Click(object sender, RoutedEventArgs args)
         {
             if (_isGenerating)
@@ -1521,6 +1670,7 @@ namespace SVoice.GameBar
 
             try
             {
+                _serviceStoppedByUser = false;
                 _isGenerating = true;
                 BeginJob("BAIXANDO MODELO", "Verificando o modelo XTTS v2…");
                 DiagnosticsSummary.Text = "Verificando e baixando o modelo XTTS v2 (1,9 GB)…";

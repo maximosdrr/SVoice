@@ -28,6 +28,14 @@ EXIT_ALREADY_RUNNING = 3
 DEFAULT_IDLE_TIMEOUT = 15 * 60
 
 
+def idle_shutdown_due(app: ServiceApp, timeout_seconds: int, *, now: float | None = None) -> bool:
+    """Return whether the service should stop because it has been idle."""
+    if timeout_seconds <= 0 or app.config.keep_xtts_loaded or app.jobs.busy:
+        return False
+    current = time.monotonic() if now is None else now
+    return current - app.jobs.last_activity >= timeout_seconds
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="svoice-xtts-service", add_help=True)
     parser.add_argument("--port", type=int, default=0, help="Porta loopback (0 = automática)")
@@ -244,11 +252,10 @@ def main(argv: list[str] | None = None, runtime_info: dict[str, Any] | None = No
             if app.shutdown_requested.wait(1.0):
                 log.info("Encerramento solicitado pelo cliente.")
                 break
-            if args.idle_timeout > 0 and not app.jobs.busy:
+            if idle_shutdown_due(app, args.idle_timeout):
                 idle = time.monotonic() - app.jobs.last_activity
-                if idle >= args.idle_timeout:
-                    log.info("Encerrando após %.0f s de inatividade.", idle)
-                    break
+                log.info("Encerrando após %.0f s de inatividade.", idle)
+                break
     except KeyboardInterrupt:
         exit_code = 0
     finally:

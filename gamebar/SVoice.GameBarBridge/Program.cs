@@ -103,6 +103,7 @@ internal sealed class CommandDispatcher
                 "set_config" => await _host.SetConfigAsync(root),
                 "ensure_model" => await _host.EnsureModelAsync(),
                 "restart_service" => await _host.RestartServiceAsync(),
+                "shutdown_service" => await _host.ShutdownServiceAsync(),
                 _ => throw new InvalidOperationException("Comando desconhecido."),
             };
             payload["ok"] = true;

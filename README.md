@@ -20,6 +20,8 @@ ou de ferramentas de desenvolvimento.
   validação completa;
 - fallback automático para CPU;
 - cache permanente da identidade vocal até a exclusão do perfil;
+- opção discreta para manter o XTTS carregado e controle para iniciar ou
+  encerrar o serviço, com inicialização automática ao enviar uma fala;
 - cancelamento, progresso e diagnóstico do backend;
 - instalador offline dos runtimes com o pacote oficial do VB-CABLE.
 
@@ -28,7 +30,7 @@ Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
 ## Instalação
 
-Execute `SVoice-Setup-2.2.0.exe` como administrador, mantenha marcadas as
+Execute `SVoice-Setup-2.2.1.exe` como administrador, mantenha marcadas as
 opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
 driver for instalado pela primeira vez, reinicie o Windows.
 
