@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import wave
 from pathlib import Path
@@ -51,6 +52,19 @@ class RegistryFixture(unittest.TestCase):
 
 @unittest.skipUnless(ffmpeg_available(), "imageio-ffmpeg não disponível")
 class ProfileLifecycleTests(RegistryFixture):
+    def setUp(self) -> None:
+        super().setUp()
+        self.speech_detector = patch.object(
+            audio,
+            "detect_speech_intervals",
+            side_effect=lambda path, **kwargs: [(0.0, audio.audio_duration(path))],
+        )
+        self.speech_detector.start()
+
+    def tearDown(self) -> None:
+        self.speech_detector.stop()
+        super().tearDown()
+
     def test_create_list_rename_delete(self) -> None:
         registry = ProfileRegistry(self.paths)
         messages: list[str] = []
@@ -108,14 +122,46 @@ class ProfileLifecycleTests(RegistryFixture):
         self.assertEqual(captured.exception.code, "reference_too_short")
         self.assertEqual(registry.list(), [])
 
-    def test_long_reference_is_chunked_and_truncated(self) -> None:
+    def test_long_reference_is_chunked_without_truncation(self) -> None:
         registry = ProfileRegistry(self.paths)
         long_reference = write_wav(self.root / "long.wav", 65, sample_rate=8000)
-        with patch.object(audio, "MAX_REFERENCE_DURATION_SECONDS", 50):
-            profile = registry.create({"reference_paths": [str(long_reference)]})
-        self.assertTrue(profile["truncated"])
-        self.assertLessEqual(profile["duration_seconds"], 50.05)
+        profile = registry.create({"reference_paths": [str(long_reference)]})
+        self.assertFalse(profile["truncated"])
+        self.assertGreaterEqual(profile["duration_seconds"], 64.9)
+        self.assertGreaterEqual(profile["input_duration_seconds"], 64.9)
         self.assertGreaterEqual(len(profile["reference_paths"]), 3)
+
+    def test_duration_above_thirty_minutes_is_not_truncated(self) -> None:
+        registry = ProfileRegistry(self.paths)
+        long_reference = write_wav(self.root / "over-thirty-minutes.wav", 4)
+
+        def fake_split(source, processing_dir, source_index, **kwargs):
+            chunks = []
+            for index in range(64):
+                chunks.append(write_wav(processing_dir / f"source_{source_index:04d}_{index:04d}.wav", 0.34))
+            return chunks
+
+        real_duration = audio.audio_duration
+
+        def fake_duration(path):
+            candidate = Path(path)
+            if candidate.name == long_reference.name:
+                return 1900.0
+            if candidate.name.startswith("source_"):
+                return 30.0
+            return real_duration(candidate)
+
+        with patch.object(audio, "split_reference_audio", side_effect=fake_split), patch.object(
+            audio,
+            "audio_duration",
+            side_effect=fake_duration,
+        ):
+            profile = registry.create({"reference_paths": [str(long_reference)]})
+
+        self.assertFalse(profile["truncated"])
+        self.assertEqual(profile["input_duration_seconds"], 1900.0)
+        self.assertEqual(profile["duration_seconds"], 1920.0)
+        self.assertEqual(len(profile["reference_paths"]), 64)
 
     def test_invalid_content_is_rejected(self) -> None:
         registry = ProfileRegistry(self.paths)
@@ -156,6 +202,53 @@ class ReferenceValidationTests(RegistryFixture):
     def test_accepts_valid_reference(self) -> None:
         sources = audio.validate_reference_sources([str(self.reference)])
         self.assertEqual(sources, [self.reference.resolve()])
+
+
+class AudioSegmentationTests(RegistryFixture):
+    def test_ffmpeg_process_is_stopped_when_import_is_cancelled(self) -> None:
+        checks = 0
+
+        def cancelled() -> None:
+            nonlocal checks
+            checks += 1
+            if checks >= 2:
+                raise CancelledError()
+
+        started = time.monotonic()
+        with self.assertRaises(CancelledError):
+            audio._run_ffmpeg_cancellable(
+                [sys.executable, "-c", "import time; time.sleep(30)"],
+                timeout=60,
+                check_cancelled=cancelled,
+            )
+        self.assertLess(time.monotonic() - started, 5)
+
+    def test_groups_never_exceed_xtts_reference_limit(self) -> None:
+        groups = audio.group_speech_intervals([(0.0, 65.0)])
+        self.assertEqual(len(groups), 3)
+        self.assertTrue(all(audio._clip_duration(group) <= 30.0 for group in groups))
+
+    def test_short_tail_is_merged_when_there_is_room(self) -> None:
+        groups = audio.group_speech_intervals([(0.0, 24.0), (30.0, 32.0)])
+        self.assertEqual(len(groups), 1)
+        self.assertAlmostEqual(audio._clip_duration(groups[0]), 26.15, places=2)
+
+    @unittest.skipUnless(ffmpeg_available(), "imageio-ffmpeg não disponível")
+    def test_split_discards_long_silence_between_detected_spans(self) -> None:
+        source = write_wav(self.root / "pauses.wav", 15)
+        output = self.root / "processed"
+        with patch.object(audio, "detect_speech_intervals", return_value=[(0.0, 4.0), (10.0, 15.0)]):
+            chunks = audio.split_reference_audio(source, output, 0)
+        self.assertEqual(len(chunks), 1)
+        self.assertAlmostEqual(audio.audio_duration(chunks[0]), 9.15, places=1)
+
+    @unittest.skipUnless(ffmpeg_available(), "imageio-ffmpeg não disponível")
+    def test_split_rejects_audio_without_detected_speech(self) -> None:
+        source = write_wav(self.root / "silent.wav", 4)
+        with patch.object(audio, "detect_speech_intervals", return_value=[]):
+            with self.assertRaises(ServiceError) as captured:
+                audio.split_reference_audio(source, self.root / "processed", 0)
+        self.assertEqual(captured.exception.code, "reference_no_speech")
 
 
 class MigrationTests(RegistryFixture):

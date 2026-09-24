@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.2.0 — 2026-09-24
+
+- corta referências longas em pausas naturais com Silero VAD e fallback do FFmpeg;
+- remove o truncamento total de 30 minutos e processa referências incrementalmente;
+- aumenta o tamanho máximo de cada referência processada de 20 para 30 segundos;
+- calcula o condicionamento XTTS em lotes para limitar o uso de RAM/VRAM;
+- mantém o cache da voz permanentemente até a exclusão explícita do perfil;
+- inclui Silero VAD, modelo ONNX e ONNX Runtime no runtime offline, mantendo o
+  download atual do modelo XTTS v2 durante a primeira instalação.
+
 ## 2.1.3 — 2026-09-22
 
 - empacota o widget e o runtime .NET 10 no mesmo MSIX para instalações limpas;

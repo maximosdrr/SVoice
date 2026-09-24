@@ -3,7 +3,7 @@
 Máquina de validação: Windows 11 Pro 10.0.26200 x64, NVIDIA GeForce RTX 3070
 (driver 610.88), 12 threads de CPU, Xbox Game Bar 7.326.8061.0, VB-CABLE já
 instalado, usuário `Hiran Junior` (caminho de perfil com espaço). Nenhuma GPU
-AMD estava disponível; ver limitações no fim. Datas: 2026-09-21.
+AMD estava disponível; ver limitações no fim. Datas: 2026-09-21 a 2026-09-24.
 
 Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não executado.
 
@@ -90,6 +90,20 @@ Legenda: ✅ executado e aprovado · ⚠️ executado com ressalva · ⏳ não e
 | Verificação pós-instalação completa | ✅ widget 2.1.3, VB-CABLE, runtime CUDA, modelo e último teste de síntese confirmados |
 | Testes do serviço | ✅ 45 testes OK; 7 opcionais de FFmpeg ignorados no ambiente de desenvolvimento |
 | Instalação e abertura visual em Windows limpo sem .NET/Visual Studio | ⏳ validação manual do usuário |
+
+## Widget 2.2.0 — referências longas e cache permanente
+
+| Cenário | Evidência |
+| --- | --- |
+| Regressão do serviço: corte por fala/pausa, importação acima de 30 minutos, ausência de fala, cancelamento do conversor e migração de perfis | ✅ 54 testes OK no Python embutido atualizado |
+| Trechos produzidos respeitam o máximo de 30 s aceito pela integração XTTS | ✅ testes de agrupamento, cauda curta e áudio contínuo de 65 s |
+| Silêncios longos não ocupam as referências finais | ✅ referência sintética de 15 s reduzida a ~9,15 s de fala + separador |
+| Silero VAD e ONNX Runtime disponíveis sem instalação externa | ✅ runtime base reconstruído e autoteste real do modelo ONNX com silêncio digital |
+| Detecção de fala real | ✅ áudio gerado pelo Windows SAPI (7,9 s) processado pelo Silero em um trecho de ~7,15 s |
+| Cache permanente | ✅ condicionamento calculado em lotes, reutilizado sem regravação e cache legado aceito sem expiração |
+| Cache danificado | ✅ preservado e reportado; a voz não é alterada silenciosamente |
+| Widget com operação de clonagem longa | ✅ compilação Debug; timeout dedicado de 24 h para importações extensas |
+| Instalação limpa com as novas dependências | ✅ pacotes e instalador regenerados; o modelo XTTS continua fora do instalador e é baixado pelo fluxo existente |
 
 ## Instalador (`SVoice.Setup` + Inno Setup)
 

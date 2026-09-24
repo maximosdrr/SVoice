@@ -5,6 +5,7 @@ transformers>=4.57,<5
 mutagen==1.47.0
 imageio-ffmpeg==0.6.0
 soundfile>=0.13
+silero-vad[onnx-cpu]==6.2.3
 torch==2.14.0
 torchaudio==2.11.0
 torchcodec==0.16.0

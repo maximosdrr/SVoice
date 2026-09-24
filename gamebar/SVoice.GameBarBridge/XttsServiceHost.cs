@@ -20,6 +20,7 @@ internal sealed class XttsServiceHost : IDisposable
     public const int ProtocolVersion = 2;
     private const int IdleTimeoutSeconds = 15 * 60;
     private static readonly TimeSpan LongOperation = TimeSpan.FromMinutes(45);
+    private static readonly TimeSpan CloneOperation = TimeSpan.FromHours(24);
 
     private readonly HttpClient _client = new() { Timeout = Timeout.InfiniteTimeSpan };
     private readonly SemaphoreSlim _startupLock = new(1, 1);
@@ -59,7 +60,7 @@ internal sealed class XttsServiceHost : IDisposable
             }
         }
 
-        return await SendAsync(HttpMethod.Post, "/profiles", new { name, reference_paths = referencePaths }, LongOperation);
+        return await SendAsync(HttpMethod.Post, "/profiles", new { name, reference_paths = referencePaths }, CloneOperation);
     }
 
     public async Task<JsonObject> RenameProfileAsync(JsonElement request)

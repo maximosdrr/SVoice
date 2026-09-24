@@ -689,7 +689,7 @@ namespace SVoice.GameBar
             items.Add(new VoiceItem(null, IsWindowsVoiceSelected));
             VoicesList.ItemsSource = items;
             VoicesHintText.Text = _profiles.Count == 0
-                ? "Nenhuma voz clonada ainda. Use CLONAR VOZ com áudios limpos de uma única pessoa (10 s a 30 min). Use apenas vozes com autorização do titular."
+                ? "Nenhuma voz clonada ainda. Use CLONAR VOZ com áudios limpos de uma única pessoa. Áudios longos são cortados automaticamente nas pausas. Use apenas vozes com autorização do titular."
                 : "Clique para selecionar a voz usada no chat. Use apenas vozes com autorização do titular.";
         }
 
@@ -763,7 +763,7 @@ namespace SVoice.GameBar
                     var content = new StackPanel { Spacing = 10 };
                     content.Children.Add(new TextBlock
                     {
-                        Text = $"{files.Count} áudio(s) selecionado(s). Use gravações limpas da mesma pessoa; de 10 segundos a 30 minutos no total.",
+                        Text = $"{files.Count} áudio(s) selecionado(s). Use gravações limpas da mesma pessoa. Áudios longos demoram mais e são cortados automaticamente nas pausas.",
                         TextWrapping = TextWrapping.Wrap,
                     });
                     content.Children.Add(nameBox);

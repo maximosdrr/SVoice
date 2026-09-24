@@ -44,9 +44,11 @@ automaticamente pelo instalador; perfis de voz e o modelo são preservados.
    como balões; clique em um balão para repeti-lo.
 4. O chip **VOZ** à esquerda da caixa de texto mostra a voz atual e abre a aba
    **Vozes**. Nela, **CLONAR VOZ** seleciona um ou mais áudios (WAV, MP3, M4A,
-   FLAC ou OGG) de uma única pessoa — de 10 segundos a 30 minutos no total —
-   e pede um nome. Use apenas vozes com autorização do titular. Clique numa voz
-   da lista para usá-la no chat; renomear e excluir ficam ao lado de cada voz.
+   FLAC ou OGG) de uma única pessoa e pede um nome. Não há limite de duração
+   total: o SVoice detecta a fala, remove silêncios longos e corta nas pausas em
+   trechos de até 30 segundos. Áudios extensos exigem mais tempo e espaço. Use
+   apenas vozes com autorização do titular. Clique numa voz da lista para usá-la
+   no chat; renomear e excluir ficam ao lado de cada voz.
 5. O áudio é enviado para **CABLE Input**. No Discord, em *Configurações ›
    Voz e vídeo*, escolha **CABLE Output (VB-Audio Virtual Cable)** como
    microfone. Desative a supressão de ruído do Discord se o início das frases
@@ -81,7 +83,7 @@ faixa de erro sugere a ação.
 | Runtime (Python embutido, PyTorch), serviço, VB-CABLE, licenças | `C:\Program Files\SVoice` |
 | Preferências e histórico do widget | Dados do aplicativo do pacote `SVoice.GameBar` |
 
-Atualizações e reparos nunca apagam perfis nem o modelo.
+Atualizações e reparos nunca apagam perfis, o cache permanente das vozes nem o modelo.
 
 ## Atualização
 

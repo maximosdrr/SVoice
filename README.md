@@ -8,6 +8,8 @@ ou de ferramentas de desenvolvimento.
 ## Recursos
 
 - clonagem local de voz a partir de WAV, MP3, M4A, FLAC ou OGG;
+- detecção local de fala e corte de referências longas nas pausas, sem limite
+  total de duração;
 - síntese XTTS v2 em português diretamente pela Xbox Game Bar;
 - chat com balões das frases ditas, modo compacto (só a caixa de texto),
   aba de vozes com clonagem, renomeação e exclusão de perfis;
@@ -17,6 +19,7 @@ ou de ferramentas de desenvolvimento.
 - AMD/Intel DirectML experimental, ativado somente após uma síntese de
   validação completa;
 - fallback automático para CPU;
+- cache permanente da identidade vocal até a exclusão do perfil;
 - cancelamento, progresso e diagnóstico do backend;
 - instalador offline dos runtimes com o pacote oficial do VB-CABLE.
 
@@ -25,7 +28,7 @@ Coqui Public Model License 1.0.0, destinada a uso não comercial.
 
 ## Instalação
 
-Execute `SVoice-Setup-2.1.3.exe` como administrador, mantenha marcadas as
+Execute `SVoice-Setup-2.2.0.exe` como administrador, mantenha marcadas as
 opções de VB-CABLE e modelo XTTS e deixe o backend em **Automático**. Se o
 driver for instalado pela primeira vez, reinicie o Windows.
 

@@ -10,7 +10,7 @@ Legenda de origem: **F** = aplicativo Flutter (`lib/`), **W** = widget Game Bar
 
 | # | Função | Onde existe hoje | Comportamento atual | Destino standalone | Standalone |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Criar perfil de voz clonada | F (diálogo), W (diálogo), S (`POST /profiles`) | Seleciona 1+ áudios, nome opcional (padrão: nome do 1.º arquivo), corta em trechos de 20 s, máximo 30 min. | Widget + serviço. Condicionamento calculado na criação com progresso. | ✅ implementado — Widget (diálogo com nome e progresso; `create_profile` → `POST /profiles`) |
+| 1 | Criar perfil de voz clonada | F (diálogo), W (diálogo), S (`POST /profiles`) | Seleciona 1+ áudios, nome opcional (padrão: nome do 1.º arquivo), detecta fala com VAD e corta nas pausas em trechos de até 30 s, sem limite total de duração. | Widget + serviço. Condicionamento calculado em lotes e salvo em cache permanente. | ✅ implementado — Widget (diálogo com nome e progresso; `create_profile` → `POST /profiles`) |
 | 2 | Importar amostra | F (`file_selector`), W (`FileOpenPicker`) | Múltiplos arquivos; caminho local obrigatório. | Widget (`FileOpenPicker`, múltiplos). | ✅ implementado — `FileOpenPicker` multi-arquivo; validação de caminho no bridge e no serviço |
 | 3 | Formatos aceitos | F, W, S | `.wav .mp3 .m4a .flac .ogg` (S converte via ffmpeg). | Iguais. Serviço valida extensão **e** conteúdo (ffprobe/wave). | ✅ implementado — Extensões iguais; conteúdo verificado por `ffprobe` (`_probe_audio`) |
 | 4 | Validação/tratamento da amostra | S | Mono 24 kHz PCM16; ≥ 3 s no total; duplicados ignorados; excedente descartado. | Igual + limite de tamanho por arquivo e mensagem quando o áudio for inválido. | ✅ implementado — + limite 512 MB/arquivo, 12 arquivos, ffprobe |

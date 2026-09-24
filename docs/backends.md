@@ -33,7 +33,7 @@ reinicia com o pack correspondente.
 
 | Pack | Conteúdo | Tamanho (zip / instalado) | Requisitos |
 | --- | --- | --- | --- |
-| `base` | coqui-tts 0.27.5, transformers, numpy, librosa, FFmpeg… | 191 MB / 0,6 GB | sempre instalado |
+| `base` | coqui-tts 0.27.5, transformers, Silero VAD + modelo ONNX, ONNX Runtime, numpy, librosa, FFmpeg… | tamanho registrado no manifesto da versão | sempre instalado |
 | `torch-cpu` | PyTorch 2.14.0+cpu, torchaudio, torchcodec | 126 MB / 0,5 GB | qualquer PC x64 |
 | `torch-cuda` | PyTorch 2.14.0+cu130 (CUDA 13.0, cuDNN 9) | 1,9 GB / 3,0 GB | NVIDIA Turing (RTX 20/GTX 16) ou mais nova, driver ≥ 580 |
 | `torch-directml` | PyTorch 2.4.1+cpu, torchvision 0.19.1, torch-directml 0.2.5.dev240914, MKL | 427 MB / 1,8 GB | GPU DirectX 12 (AMD, Intel ou NVIDIA); experimental |
@@ -43,6 +43,10 @@ Os packs são zips gerados por `service\runtime\build-runtime.ps1` e listados em
 recomendado (mais `base`); `SVoice.Setup install-runtime` também aceita
 download a partir de `download_base_url` com cache em
 `%LOCALAPPDATA%\SVoice\Downloads` e verificação de hash.
+
+O detector Silero e seu modelo ONNX pertencem ao pack `base` e funcionam sem
+download adicional. O modelo XTTS v2 mantém seu fluxo separado: é reutilizado
+quando já existe ou baixado e verificado na primeira instalação.
 
 ### Por que o instalador é "offline completo"
 

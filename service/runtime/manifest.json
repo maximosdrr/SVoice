@@ -1,67 +1,65 @@
-﻿{
-    "manifest_version":  1,
-    "runtime_version":  "2026.09.21",
-    "built_at":  "2026-09-21T18:14:45.6720952Z",
-    "python":  {
-                   "version":  "3.12.10",
-                   "archive":  "svoice-python-3.12.10.zip",
-                   "sha256":  "ae9071ff4b26ec8b4738febfbda093887a98700ecfc200e9c737e42d918b52d2",
-                   "size":  11945116
-               },
-    "packs":  {
-                  "base":  {
-                               "version":  "2026.09.21+tts0.27.5",
-                               "archive":  "svoice-pack-base-2026.09.21.zip",
-                               "sha256":  "f12b7fe5f6e5d0bcbe6399795bf404b23c4de355bd2cc62e62f978d4d01dee18",
-                               "size":  199993354,
-                               "unpacked_bytes":  606066704,
-                               "backends":  [
-
-                                            ]
-                           },
-                  "torch-cpu":  {
-                                    "version":  "2.14.0+cpu",
-                                    "archive":  "svoice-pack-torch-cpu-2026.09.21.zip",
-                                    "sha256":  "18149bc693efd66abcdb104c31b586fe546e10fe4eb5f433f024e30b0a0f7056",
-                                    "size":  131902593,
-                                    "unpacked_bytes":  477323824,
-                                    "backends":  [
-                                                     "cpu"
-                                                 ]
-                                },
-                  "torch-cuda":  {
-                                     "version":  "2.14.0+cu130",
-                                     "archive":  "svoice-pack-torch-cuda-2026.09.21.zip",
-                                     "sha256":  "b3b0b017a9b448a226f83685420642c4667e98aff4db45a6c087430eaba8e32f",
-                                     "size":  2008146233,
-                                     "unpacked_bytes":  3027772793,
-                                     "backends":  [
-                                                      "cuda",
-                                                      "cpu"
-                                                  ],
-                                     "requires":  {
-                                                      "cuda":  "13.0",
-                                                      "vendor":  "nvidia",
-                                                      "nvidia_driver_min":  "580.00",
-                                                      "compute_capability_min":  "7.5"
-                                                  }
-                                 },
-                  "torch-directml":  {
-                                         "version":  "2.4.1+cpu+dml0.2.5.dev240914",
-                                         "archive":  "svoice-pack-torch-directml-2026.09.21.zip",
-                                         "sha256":  "f88f69bea8a24b6fab8bfbdbedfa6cd45825e7eb6967b101136531701d7fa618",
-                                         "size":  447268678,
-                                         "unpacked_bytes":  1846207972,
-                                         "backends":  [
-                                                          "directml",
-                                                          "cpu"
-                                                      ],
-                                         "experimental":  true,
-                                         "requires":  {
-                                                          "directx":  "12",
-                                                          "vendor":  "amd|intel|nvidia"
-                                                      }
-                                     }
-              },
-    "download_base_url":  "https://github.com/maximosdrr/SVoice/releases/download/runtime-2026.09.21/"
+{
+  "manifest_version": 1,
+  "runtime_version": "2026.09.24",
+  "built_at": "2026-09-24T15:20:45.5118385Z",
+  "python": {
+    "version": "3.12.10",
+    "archive": "svoice-python-3.12.10.zip",
+    "sha256": "f9dfb8fab929c766734d92243dd1d4caed783d0cbb648fd07df39f1d5af03cbe",
+    "size": 11945103
+  },
+  "packs": {
+    "base": {
+      "version": "2026.09.24+tts0.27.5",
+      "archive": "svoice-pack-base-2026.09.24.zip",
+      "sha256": "2980adb58add7561b5a526ea700a50dfea09ddbdbd4ade91f8258988899bfe4d",
+      "size": 231839545,
+      "unpacked_bytes": 661894408.0,
+      "backends": []
+    },
+    "torch-cpu": {
+      "version": "2.14.0+cpu",
+      "archive": "svoice-pack-torch-cpu-2026.09.24.zip",
+      "sha256": "39ca138956f719d96f146bfea24bc289f2d26523dc6e347a0b0aa3ffac8f3fab",
+      "size": 137830477,
+      "unpacked_bytes": 501684654.0,
+      "backends": [
+        "cpu"
+      ]
+    },
+    "torch-cuda": {
+      "version": "2.14.0+cu130",
+      "archive": "svoice-pack-torch-cuda-2026.09.24.zip",
+      "sha256": "1afec4663856b315fc1c52663f83722aa4bbe4a57977389d05a31da0c53273c5",
+      "size": 2008146233,
+      "unpacked_bytes": 3027772793,
+      "backends": [
+        "cuda",
+        "cpu"
+      ],
+      "requires": {
+        "cuda": "13.0",
+        "vendor": "nvidia",
+        "nvidia_driver_min": "580.00",
+        "compute_capability_min": "7.5"
+      }
+    },
+    "torch-directml": {
+      "version": "2.4.1+cpu+dml0.2.5.dev240914",
+      "archive": "svoice-pack-torch-directml-2026.09.24.zip",
+      "sha256": "1e7ce6a6f5e10d66571b6198852101ec0e9df31701846cef11df3654e86759b1",
+      "size": 447268678,
+      "unpacked_bytes": 1846207972,
+      "backends": [
+        "directml",
+        "cpu"
+      ],
+      "experimental": true,
+      "requires": {
+        "directx": "12",
+        "vendor": "amd|intel|nvidia"
+      }
+    }
+  },
+  "download_base_url": "https://github.com/maximosdrr/SVoice/releases/download/runtime-2026.09.24/"
 }

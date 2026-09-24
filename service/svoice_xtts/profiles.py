@@ -133,6 +133,14 @@ class ProfileRegistry:
             except (TypeError, ValueError):
                 profile["duration_seconds"] = 0.0
                 changed = True
+            try:
+                profile["input_duration_seconds"] = round(
+                    float(profile.get("input_duration_seconds", profile["duration_seconds"])),
+                    3,
+                )
+            except (TypeError, ValueError):
+                profile["input_duration_seconds"] = profile["duration_seconds"]
+                changed = True
             kept.append(profile)
         self._data["profiles"] = kept
         if changed:
@@ -273,6 +281,7 @@ class ProfileRegistry:
             "reference_count": len(references),
             "missing_references": missing,
             "duration_seconds": float(profile.get("duration_seconds", 0.0)),
+            "input_duration_seconds": float(profile.get("input_duration_seconds", profile.get("duration_seconds", 0.0))),
             "source_count": int(profile.get("source_count", 1)),
             "truncated": bool(profile.get("truncated", False)),
             "created_at": profile.get("created_at"),
@@ -324,6 +333,19 @@ class ProfileRegistry:
             audio.probe_audio(source)
             original_duration += max(0.0, audio.audio_duration(source))
 
+        if original_duration > 0:
+            required = audio.processing_space_required(original_duration)
+            try:
+                available = shutil.disk_usage(self.paths.temp_dir).free
+            except OSError:
+                available = required
+            if available < required:
+                raise ServiceError(
+                    "Não há espaço livre suficiente para preparar estes áudios.",
+                    code="insufficient_disk_space",
+                    action=f"Libere pelo menos {required / (1024 ** 3):.1f} GB e tente novamente.",
+                )
+
         name = self.available_name(payload.get("name"), sources[0].stem)
         profile_id = uuid.uuid4().hex
         profile_dir = self.paths.voices_dir / profile_id
@@ -333,17 +355,19 @@ class ProfileRegistry:
         processed: list[str] = []
         total_duration = 0.0
         try:
-            remaining = float(audio.MAX_REFERENCE_DURATION_SECONDS)
             chunk_number = 0
             for source_index, source in enumerate(sources):
                 cancelled()
-                if remaining <= 0.05:
-                    break
                 notify(
-                    f"Cortando o áudio {source_index + 1} de {len(sources)}…",
+                    f"Detectando fala e cortando o áudio {source_index + 1} de {len(sources)}…",
                     0.1 + 0.6 * (source_index / max(1, len(sources))),
                 )
-                chunks = audio.split_reference_audio(source, processing_dir, source_index, remaining)
+                chunks = audio.split_reference_audio(
+                    source,
+                    processing_dir,
+                    source_index,
+                    check_cancelled=cancelled,
+                )
                 if not chunks:
                     raise ServiceError(
                         f"Não foi possível ler o áudio {source.name}.",
@@ -358,7 +382,6 @@ class ProfileRegistry:
                     shutil.move(str(chunk), destination)
                     processed.append(str(destination))
                     total_duration += duration
-                remaining = max(0.0, audio.MAX_REFERENCE_DURATION_SECONDS - total_duration)
 
             if total_duration < 3:
                 raise ServiceError(
@@ -371,9 +394,10 @@ class ProfileRegistry:
                 "id": profile_id,
                 "name": name,
                 "reference_paths": processed,
-                "duration_seconds": round(min(total_duration, audio.MAX_REFERENCE_DURATION_SECONDS), 3),
+                "duration_seconds": round(total_duration, 3),
+                "input_duration_seconds": round(original_duration, 3),
                 "source_count": len(sources),
-                "truncated": original_duration > audio.MAX_REFERENCE_DURATION_SECONDS + 0.05,
+                "truncated": False,
                 "created_at": datetime.now(UTC).isoformat(),
             }
             with self._lock:
@@ -412,13 +436,6 @@ class ProfileRegistry:
             shutil.rmtree(target, ignore_errors=True)
         log.info("Perfil removido: %s", profile_id)
 
-    def invalidate_conditioning(self, profile_id: str) -> None:
-        try:
-            (self.paths.voices_dir / profile_id / CONDITIONING_FILE).unlink()
-        except OSError:
-            pass
-
-
 def cleanup_temp_files(paths: DataPaths, *, max_age_seconds: float = 0.0) -> int:
     """Remove leftover import folders and utterances from the temp directory."""
     removed = 0
@@ -430,7 +447,7 @@ def cleanup_temp_files(paths: DataPaths, *, max_age_seconds: float = 0.0) -> int
     for path in entries:
         try:
             age = now - path.stat().st_mtime
-            if age < max_age_seconds:
+            if max_age_seconds > 0 and age < max_age_seconds:
                 continue
             if path.is_dir() and path.name.startswith("import_"):
                 shutil.rmtree(path)

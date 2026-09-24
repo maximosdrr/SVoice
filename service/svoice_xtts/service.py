@@ -156,8 +156,11 @@ def runtime_self_test() -> None:
     from TTS.tts.configs.xtts_config import XttsConfig  # noqa: F401
     from TTS.tts.models.xtts import Xtts  # noqa: F401
     import imageio_ffmpeg
+    import numpy as np
+    import onnxruntime  # noqa: F401
     import torch
     import torchaudio
+    from silero_vad import get_speech_timestamps_sequence, load_silero_vad
 
     imageio_ffmpeg.get_ffmpeg_exe()
     _configure_audio_io(torch, torchaudio)
@@ -167,6 +170,15 @@ def runtime_self_test() -> None:
         waveform, sample_rate = torchaudio.load(str(test_audio))
         if sample_rate != 24000 or tuple(waveform.shape) != (1, 240):
             raise RuntimeError("Falha no autoteste de leitura e gravação de áudio.")
+        vad = load_silero_vad(sequence=True, sampling_rate=16000)
+        timestamps = get_speech_timestamps_sequence(
+            np.zeros(16000, dtype=np.float32),
+            vad,
+            sampling_rate=16000,
+            return_seconds=True,
+        )
+        if timestamps:
+            raise RuntimeError("O autoteste do detector de voz retornou fala em silêncio digital.")
     print(json.dumps({"ok": True, "torch": torch.__version__, "cuda": torch.version.cuda,
                       "service_version": SERVICE_VERSION}))
 

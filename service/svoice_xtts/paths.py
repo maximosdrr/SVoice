@@ -18,7 +18,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-DATA_SCHEMA_VERSION = 2
+DATA_SCHEMA_VERSION = 3
 
 
 def local_app_data() -> Path:

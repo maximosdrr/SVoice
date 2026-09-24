@@ -148,6 +148,7 @@ namespace SVoice.GameBar
         internal const int ProtocolVersion = 2;
         private static readonly Uri LaunchUri = new Uri("svoice-bridge://start");
         private static readonly TimeSpan LongOperation = TimeSpan.FromMinutes(45);
+        private static readonly TimeSpan CloneOperation = TimeSpan.FromHours(24);
 
         public async Task<XttsHealth> PingAsync()
         {
@@ -178,7 +179,7 @@ namespace SVoice.GameBar
 
             using var response = await SendAsync(
                 new { command = "create_profile", protocol = ProtocolVersion, name = name?.Trim(), reference_paths = referencePaths },
-                LongOperation);
+                CloneOperation);
             if (!response.RootElement.TryGetProperty("profile", out var profile))
             {
                 throw new XttsBridgeException("O XTTS não confirmou a voz clonada.");

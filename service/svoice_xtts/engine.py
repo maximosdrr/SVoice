@@ -24,7 +24,10 @@ from .profiles import CONDITIONING_FILE, ProfileRegistry
 
 log = get_logger("engine")
 
-CONDITIONING_CACHE_VERSION = 2
+CONDITIONING_CACHE_FORMAT = 3
+CONDITIONING_BATCH_SECONDS = 90
+GPT_CONDITIONING_CHUNK_SECONDS = 6
+MIN_GPT_AUDIO_SECONDS = 0.33
 MAX_TEXT_LENGTH = 1000
 LANGUAGE = "pt"
 TARGET_PEAK = 10 ** (-3 / 20)  # -3 dBFS
@@ -323,20 +326,76 @@ class XttsEngine:
     def _conditioning_cache_path(self, profile_id: str) -> Path:
         return self.paths.voices_dir / profile_id / CONDITIONING_FILE
 
+    @staticmethod
+    def _conditioning_batches(references: list[str]) -> list[list[str]]:
+        batches: list[list[str]] = []
+        current: list[str] = []
+        current_duration = 0.0
+        for reference in references:
+            duration = max(MIN_GPT_AUDIO_SECONDS, audio.audio_duration(Path(reference)))
+            if current and current_duration + duration > CONDITIONING_BATCH_SECONDS:
+                batches.append(current)
+                current = []
+                current_duration = 0.0
+            current.append(reference)
+            current_duration += duration
+        if current:
+            batches.append(current)
+        return batches
+
+    @staticmethod
+    def _gpt_window_count(references: list[str]) -> int:
+        duration = sum(max(0.0, audio.audio_duration(Path(reference))) for reference in references)
+        full_windows = int(duration // GPT_CONDITIONING_CHUNK_SECONDS)
+        remainder = duration - full_windows * GPT_CONDITIONING_CHUNK_SECONDS
+        return max(1, full_windows + (1 if remainder >= MIN_GPT_AUDIO_SECONDS else 0))
+
+    def _load_conditioning_cache(self, cache_path: Path) -> tuple[Any, Any]:
+        try:
+            payload = self.torch.load(cache_path, map_location="cpu", weights_only=False)
+            latent = payload["gpt_cond_latent"]
+            embedding = payload["speaker_embedding"]
+            if not hasattr(latent, "numel") or not hasattr(embedding, "numel"):
+                raise ValueError("tensores ausentes")
+            if latent.numel() == 0 or embedding.numel() == 0:
+                raise ValueError("tensores vazios")
+            if not bool(self.torch.isfinite(latent).all()) or not bool(self.torch.isfinite(embedding).all()):
+                raise ValueError("tensores inválidos")
+            return latent.to(self.device), embedding.to(self.device)
+        except Exception as error:
+            raise ServiceError(
+                "O cache permanente desta voz está danificado ou incompatível.",
+                500,
+                code="conditioning_cache_corrupted",
+                action="Exclua esta voz e crie-a novamente com os áudios originais.",
+            ) from error
+
+    def _save_conditioning_cache(self, cache_path: Path, latent: Any, embedding: Any) -> None:
+        temporary = cache_path.with_suffix(cache_path.suffix + ".tmp")
+        try:
+            self.torch.save(
+                {
+                    "gpt_cond_latent": latent.detach().cpu(),
+                    "speaker_embedding": embedding.detach().cpu(),
+                    "model": MODEL_NAME,
+                    "cache_format": CONDITIONING_CACHE_FORMAT,
+                    "created_at": datetime.now(UTC).isoformat(),
+                    "persistent": True,
+                },
+                temporary,
+            )
+            temporary.replace(cache_path)
+        finally:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+
     def conditioning_for_profile(self, profile: dict[str, Any], job: Job | None = None) -> tuple[Any, Any]:
         torch = self.torch
         cache_path = self._conditioning_cache_path(profile["id"])
         if cache_path.exists():
-            try:
-                payload = torch.load(cache_path, map_location="cpu", weights_only=False)
-                if payload.get("model") == MODEL_NAME and payload.get("cache_version") == CONDITIONING_CACHE_VERSION:
-                    return payload["gpt_cond_latent"].to(self.device), payload["speaker_embedding"].to(self.device)
-            except Exception:
-                pass
-            try:
-                cache_path.unlink()
-            except OSError:
-                pass
+            return self._load_conditioning_cache(cache_path)
 
         references = self.registry.usable_references(profile)
         if not references:
@@ -348,33 +407,64 @@ class XttsEngine:
             )
         if job:
             job.update("Analisando as características da voz…")
+        batches = self._conditioning_batches(references)
         backend = get_backend(self.loaded_backend or "cpu")
         move_to_cpu = backend.conditioning_on_cpu()
         if move_to_cpu:
             self.model.to("cpu")
+        latent_sum = None
+        embedding_sum = None
+        latent_weight_total = 0
+        embedding_weight_total = 0
+        processed_references = 0
         try:
-            with torch.no_grad():
-                latent, embedding = self.model.get_conditioning_latents(
-                    audio_path=references,
-                    max_ref_length=audio.REFERENCE_CHUNK_SECONDS,
-                    gpt_cond_len=-1,
-                    gpt_cond_chunk_len=6,
+            for batch_index, batch in enumerate(batches):
+                if job:
+                    job.check_cancelled()
+                    job.update(
+                        f"Analisando a voz ({processed_references + 1}-{processed_references + len(batch)} de {len(references)})…",
+                        0.75 + 0.2 * (batch_index / max(1, len(batches))),
+                    )
+                with torch.no_grad():
+                    batch_latent, batch_embedding = self.model.get_conditioning_latents(
+                        audio_path=batch,
+                        max_ref_length=audio.REFERENCE_CHUNK_SECONDS,
+                        gpt_cond_len=-1,
+                        gpt_cond_chunk_len=GPT_CONDITIONING_CHUNK_SECONDS,
+                    )
+                latent_weight = self._gpt_window_count(batch)
+                embedding_weight = len(batch)
+                batch_latent_cpu = batch_latent.detach().cpu()
+                batch_embedding_cpu = batch_embedding.detach().cpu()
+                latent_sum = (
+                    batch_latent_cpu * latent_weight
+                    if latent_sum is None
+                    else latent_sum + batch_latent_cpu * latent_weight
                 )
+                embedding_sum = (
+                    batch_embedding_cpu * embedding_weight
+                    if embedding_sum is None
+                    else embedding_sum + batch_embedding_cpu * embedding_weight
+                )
+                latent_weight_total += latent_weight
+                embedding_weight_total += embedding_weight
+                processed_references += len(batch)
+                del batch_latent, batch_embedding, batch_latent_cpu, batch_embedding_cpu
         finally:
             if move_to_cpu:
                 self.model.to(self.device)
+        if latent_sum is None or embedding_sum is None:
+            raise ServiceError(
+                "O XTTS não conseguiu extrair as características desta voz.",
+                code="conditioning_failed",
+                action="Use uma gravação com voz clara e tente novamente.",
+            )
+        latent = latent_sum / max(1, latent_weight_total)
+        embedding = embedding_sum / max(1, embedding_weight_total)
         if job:
             job.check_cancelled()
-        torch.save(
-            {
-                "gpt_cond_latent": latent.detach().cpu(),
-                "speaker_embedding": embedding.detach().cpu(),
-                "model": MODEL_NAME,
-                "cache_version": CONDITIONING_CACHE_VERSION,
-                "created_at": datetime.now(UTC).isoformat(),
-            },
-            cache_path,
-        )
+            job.update("Salvando o cache permanente da voz…", 0.96)
+        self._save_conditioning_cache(cache_path, latent, embedding)
         return latent.to(self.device), embedding.to(self.device)
 
     def builtin_speaker(self) -> tuple[str, Any, Any]:

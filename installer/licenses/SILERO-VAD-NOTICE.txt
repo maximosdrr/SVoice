@@ -1,0 +1,12 @@
+Silero VAD
+==========
+
+Copyright (c) 2020-present Silero Team
+
+The SVoice installer includes Silero VAD and its local model for offline voice
+activity detection. Silero VAD is distributed under the MIT License.
+
+Project: https://github.com/snakers4/silero-vad
+License: https://github.com/snakers4/silero-vad/blob/master/LICENSE
+
+The full license text is included with the installed Python package metadata.
